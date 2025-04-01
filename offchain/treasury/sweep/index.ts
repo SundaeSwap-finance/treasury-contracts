@@ -8,8 +8,8 @@ import {
 } from "@blaze-cardano/sdk";
 import { Slot, TransactionUnspentOutput } from "@blaze-cardano/core";
 import * as Data from "@blaze-cardano/data";
-import { loadScript } from "../shared";
-import { TreasuryConfiguration, TreasurySpendRedeemer } from "../types/contracts";
+import { loadTreasuryScript, unix_to_slot } from "../../shared";
+import { TreasuryConfiguration, TreasurySpendRedeemer } from "../../types/contracts";
 
 export async function sweep<P extends Provider, W extends Wallet>(
   config: TreasuryConfiguration,
@@ -18,17 +18,17 @@ export async function sweep<P extends Provider, W extends Wallet>(
   amount?: bigint,
 ): Promise<TxBuilder> {
   amount ??= input.output().amount().coin();
-  const { scriptAddress, treasuryScript } = loadScript(
+  const { script, scriptAddress } = loadTreasuryScript(
     blaze.provider.network,
     config,
   );
-  const refInput = await blaze.provider.resolveScriptRef(treasuryScript.Script);
+  const refInput = await blaze.provider.resolveScriptRef(script.Script);
   if (!refInput)
     throw new Error("Could not find treasury script reference on-chain");
   let tx = blaze
     .newTransaction()
     .addInput(input, Data.serialize(TreasurySpendRedeemer, "SweepTreasury"))
-    .setValidFrom(Slot(Number(config.expiration)))
+    .setValidFrom(unix_to_slot(config.expiration + 1000n))
     .addReferenceInput(refInput)
     .setDonation(amount);
 

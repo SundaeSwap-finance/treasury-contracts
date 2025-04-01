@@ -71,10 +71,10 @@ pub type TreasurySpendRedeemer {
 
 pub type VendorSpendRedeemer {
   Withdraw
-  Pause { indices: List<Int> }
-  Resume { indices: List<Int> }
+  Adjudicate { statuses: List<PayoutStatus> }
   Modify
   SweepVendor
+  Malformed
 }
 
 pub type PayoutStatus {

@@ -10,37 +10,98 @@ import {
 } from "@blaze-cardano/sdk";
 import {
   Bip32PrivateKey,
+  Ed25519KeyHashHex,
   getBurnAddress,
   mnemonicToEntropy,
+  Slot,
   wordlist,
 } from "@blaze-cardano/core";
 import { Emulator, EmulatorProvider } from "@blaze-cardano/emulator";
-import { loadScript } from "../shared";
-import type { TreasuryConfiguration } from "../types/contracts";
+import { loadScripts, slot_to_unix } from "../shared";
+import type {
+  TreasuryConfiguration,
+  VendorConfiguration,
+} from "../types/contracts";
 
-export function sampleConfig(): TreasuryConfiguration {
+export function registryToken(): [string, string] {
+  return ["00000000000000000000000000000000", "REGISTRY"];
+}
+
+export const Sweeper = "Sweeper";
+export const Disburser = "Disburser";
+export const Funder = "Funder";
+export const Reorganizer = "Reorganizer";
+
+export async function sweep_key(emulator: Emulator) {
+  return (await emulator.register(Sweeper)).asBase()?.getPaymentCredential()
+    .hash!;
+}
+
+export async function disburse_key(emulator: Emulator) {
+  return (await emulator.register(Disburser)).asBase()?.getPaymentCredential()
+    .hash!;
+}
+
+export async function fund_key(emulator: Emulator) {
+  return (await emulator.register(Funder)).asBase()?.getPaymentCredential()
+    .hash!;
+}
+
+export async function reorganize_key(emulator: Emulator) {
+  return (await emulator.register(Reorganizer)).asBase()?.getPaymentCredential()
+    .hash!;
+}
+
+export async function sampleTreasuryConfig(
+  emulator: Emulator,
+): Promise<TreasuryConfiguration> {
+  const [policyId, _] = registryToken();
   return {
-    expiration: 1000n,
-    vendor_script: {
-      Script: [""],
-    },
+    registry_token: policyId,
+    expiration: slot_to_unix(Slot(30)),
+    payout_upperbound: slot_to_unix(Slot(45)),
     permissions: {
       sweep: {
         Signature: {
-          key_hash: "ab",
+          key_hash: await sweep_key(emulator),
         },
       },
       disburse: {
         Signature: {
-          key_hash: "ab",
+          key_hash: await disburse_key(emulator),
         },
       },
       fund: {
         Signature: {
-          key_hash: "ab",
+          key_hash: await fund_key(emulator),
         },
       },
       reorganize: {
+        Signature: {
+          key_hash: await reorganize_key(emulator),
+        },
+      },
+    },
+  };
+}
+
+export function sampleVendorConfig(): VendorConfiguration {
+  const [policyId, _] = registryToken();
+  return {
+    registry_token: policyId,
+    expiration: 15n * 1000n,
+    permissions: {
+      pause: {
+        Signature: {
+          key_hash: "ab",
+        },
+      },
+      resume: {
+        Signature: {
+          key_hash: "ab",
+        },
+      },
+      modify: {
         Signature: {
           key_hash: "ab",
         },
@@ -49,38 +110,12 @@ export function sampleConfig(): TreasuryConfiguration {
   };
 }
 
-export async function setupBlaze(txOuts: Core.TransactionOutput[] = []) {
-  const { treasuryScript } = loadScript(Core.NetworkId.Testnet, sampleConfig());
-  txOuts.push(
-    new Core.TransactionOutput(
-      Core.Address.fromBech32(
-        "addr_test1qryvgass5dsrf2kxl3vgfz76uhp83kv5lagzcp29tcana68ca5aqa6swlq6llfamln09tal7n5kvt4275ckwedpt4v7q48uhex",
-      ),
-      makeValue(1_000_000_000n),
-    ),
-  );
-  txOuts.push(
-    new Core.TransactionOutput(
-      Core.Address.fromBech32(
-        "addr_test1qryvgass5dsrf2kxl3vgfz76uhp83kv5lagzcp29tcana68ca5aqa6swlq6llfamln09tal7n5kvt4275ckwedpt4v7q48uhex",
-      ),
-      makeValue(5_000_000n),
-    ),
-  );
-  txOuts.push(
-    new Core.TransactionOutput(
-      Core.Address.fromBech32(
-        "addr_test1qryvgass5dsrf2kxl3vgfz76uhp83kv5lagzcp29tcana68ca5aqa6swlq6llfamln09tal7n5kvt4275ckwedpt4v7q48uhex",
-      ),
-      makeValue(3_000_000n, ["a".repeat(64), 1n]),
-    ),
-  );
-  const scriptRef = new Core.TransactionOutput(
-    getBurnAddress(Core.NetworkId.Testnet),
-    makeValue(5_000_000n),
-  );
-  scriptRef.setScriptRef(treasuryScript.Script);
-  txOuts.push(scriptRef);
+export function blocks(slot: Slot): number {
+  return slot / 20;
+}
+
+export async function setupEmulator(txOuts: Core.TransactionOutput[] = []) {
+  // TODO: custom protocol parameters needed for plutus v3?
   const protocolParameters = {
     coinsPerUtxoByte: 4310,
     minFeeReferenceScripts: { base: 15, range: 25600, multiplier: 1.2 },
@@ -169,46 +204,23 @@ export async function setupBlaze(txOuts: Core.TransactionOutput[] = []) {
     maxExecutionUnitsPerTransaction: { memory: 14e6, steps: 1e10 },
     maxExecutionUnitsPerBlock: { memory: 62e6, steps: 2e10 },
   };
+
   const emulator = new Emulator(txOuts, protocolParameters);
-  const provider = new EmulatorProvider(emulator);
-  const mnemonic =
-    "test test test test test test " +
-    "test test test test test test " +
-    "test test test test test test " +
-    "test test test test test sauce";
-  const entropy = mnemonicToEntropy(mnemonic, wordlist);
-  const masterkey = Bip32PrivateKey.fromBip39Entropy(Buffer.from(entropy), "");
-  const wallet = await HotWallet.fromMasterkey(masterkey.hex(), provider);
-  const blaze = await Blaze.from(provider, wallet);
-  return { emulator, provider, wallet, blaze };
-}
 
-export function makeExpectTxValid(
-  blaze: Blaze<Provider, Wallet>,
-  emulator: Emulator,
-): (tx: TxBuilder) => Promise<void> {
-  return async (tx: TxBuilder) => {
-    const completedTx = await tx.complete();
-    const signedTx = await blaze.signTransaction(completedTx);
-    const txId = await emulator.submitTransaction(signedTx);
-    emulator.awaitTransactionConfirmation(txId);
-    expect(txId).toBeDefined();
-  };
-}
-export function makeExpectTxInvalid(
-  blaze: Blaze<Provider, Wallet>,
-  emulator: Emulator,
-): (tx: TxBuilder) => Promise<void> {
-  return async (tx: TxBuilder) => {
-    expect(async () => {
-      const completedTx = await tx.complete();
-      const signedTx = await blaze.signTransaction(completedTx);
-      const txId = await emulator.submitTransaction(signedTx);
-      emulator.awaitTransactionConfirmation(txId);
-    }).toThrow();
-  };
-}
+  const { treasuryScript, vendorScript } = loadScripts(
+    Core.NetworkId.Testnet,
+    await sampleTreasuryConfig(emulator),
+    sampleVendorConfig(),
+  );
 
-export async function expectScriptFailure(tx: TxBuilder) {
-  expect(() => tx.complete()).toThrow("failed script execution");
+  await emulator.publishScript(treasuryScript.script.Script);
+  await emulator.publishScript(vendorScript.script.Script);
+  await emulator.register("MaliciousUser");
+  await emulator.register(
+    "Anyone",
+    makeValue(5_000_000n, ["a".repeat(64), 1n]),
+  );
+  await emulator.fund("Anyone", makeValue(1000_000_000n));
+
+  return emulator;
 }

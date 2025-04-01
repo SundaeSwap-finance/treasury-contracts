@@ -1,37 +1,32 @@
-use cardano/transaction.{OutputReference, Transaction}
+use cardano/transaction.{OutputReference, Transaction, find_input}
+use logic/vendor/adjudicate
 use logic/vendor/malformed
 use logic/vendor/modify
-use logic/vendor/pause
-use logic/vendor/resume
 use logic/vendor/sweep
 use logic/vendor/withdraw
 use types.{
-  Modify, Pause, Resume, SweepVendor, VendorConfiguration, VendorDatum,
+  Adjudicate, Malformed, Modify, SweepVendor, VendorConfiguration,
   VendorSpendRedeemer, Withdraw,
 }
 
 /// A vendor script, for an ongoing project with an owner
-validator vendor(_config: VendorConfiguration) {
+validator vendor(config: VendorConfiguration) {
   spend(
-    datum: Option<Data>,
+    _: Option<Data>,
     redeemer: VendorSpendRedeemer,
-    _utxo: OutputReference,
+    utxo: OutputReference,
     self: Transaction,
   ) {
-    when datum is {
-      None -> malformed.logic(self)
-      Some(datum) ->
-        if datum is VendorDatum {
-          when redeemer is {
-            Withdraw -> withdraw.logic(self)
-            Pause { .. } -> pause.logic(self)
-            Resume { .. } -> resume.logic(self)
-            Modify -> modify.logic(self)
-            SweepVendor -> sweep.logic(self)
-          }
-        } else {
-          malformed.logic(self)
-        }
+    expect Some(spent_input) = find_input(self.inputs, utxo)
+    let account = spent_input.output.address.payment_credential
+
+    when redeemer is {
+      Withdraw -> withdraw.logic(account, self)
+      Adjudicate { statuses } ->
+        adjudicate.logic(statuses, config, account, self)
+      Modify -> modify.logic(config, account, self)
+      SweepVendor -> sweep.logic(config, account, self)
+      Malformed -> malformed.logic(config, account, self)
     }
   }
 

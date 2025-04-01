@@ -5,8 +5,8 @@ import {
   type Wallet,
 } from "@blaze-cardano/sdk";
 import * as Data from "@blaze-cardano/data";
-import { loadScript } from "../shared";
-import type { TreasuryConfiguration } from "../types/contracts";
+import { loadTreasuryScript } from "../../shared";
+import type { TreasuryConfiguration } from "../../types/contracts";
 import { HexBlob, PlutusData } from "@blaze-cardano/core";
 
 export async function withdraw<P extends Provider, W extends Wallet>(
@@ -14,11 +14,11 @@ export async function withdraw<P extends Provider, W extends Wallet>(
   amount: bigint,
   blaze: Blaze<P, W>,
 ): Promise<TxBuilder> {
-  const { rewardAccount, scriptAddress, treasuryScript } = loadScript(
+  const { script, rewardAccount, scriptAddress } = loadTreasuryScript(
     blaze.provider.network,
     config,
   );
-  const refInput = await blaze.provider.resolveScriptRef(treasuryScript.Script);
+  const refInput = await blaze.provider.resolveScriptRef(script.Script);
   if (!refInput)
     throw new Error("Could not find treasury script reference on-chain");
   return blaze

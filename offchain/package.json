@@ -3,7 +3,7 @@
   "module": "index.ts",
   "type": "module",
   "devDependencies": {
-    "@blaze-cardano/emulator": "^0.3.19",
+    "@blaze-cardano/emulator": "link:@blaze-cardano/emulator",
     "@types/bun": "latest"
   },
   "peerDependencies": {
