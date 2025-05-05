@@ -33,7 +33,7 @@ export async function sweep<P extends Provider, W extends Wallet>(
     .setDonation(amount);
 
   let remainder = Value.merge(input.output().amount(), makeValue(-amount));
-  if (remainder !== Value.zero()) {
+  if (!Value.empty(remainder)) {
     tx = tx.lockAssets(
       scriptAddress,
       remainder,
