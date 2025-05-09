@@ -170,8 +170,8 @@ describe('Sweep multiple satisfaction attack', () => {
   });
 
   describe('after the timeout', () => {
-    describe('a malicious user', () => {
-      test('can steal funds meant to be swept through double satisfaction', async () => {
+    describe('a funder', () => {
+      test('steal funds meant to be fund through double satisfaction', async () => {
         await emulator.as(Funder, async (blaze, addr) => {
           const fundVal = makeValue(50_000_000n);
           const vendorDatum: VendorDatum = {
