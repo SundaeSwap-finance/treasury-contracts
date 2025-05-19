@@ -27,11 +27,14 @@ import {
 } from "../types/contracts";
 
 export function registryToken(): [string, string] {
-  return [
-    "00000000000000000000000000000000000000000000000000000000",
-    toHex(Buffer.from("REGISTRY")),
-  ];
+  return getRegistryToken(0)
 }
+
+function getRegistryToken(key: Number): [string, string] {
+  let s = "00000000000000000000000000000000000000000000000000000000" + key
+  return [s.substring(s.length - 56), toHex(Buffer.from("REGISTRY"))]
+}
+
 
 export const Sweeper = "Sweeper";
 export const Disburser = "Disburser";
@@ -84,8 +87,9 @@ export async function vendor_key(emulator: Emulator) {
 
 export async function sampleTreasuryConfig(
   emulator: Emulator,
+  instance?: Number
 ): Promise<TreasuryConfiguration> {
-  const [policyId, _] = registryToken();
+  const [policyId, _] = getRegistryToken(instance || 0);
   return {
     registry_token: policyId,
     expiration: slot_to_unix(Slot(36 * 60 * 60 + 10)),
@@ -117,8 +121,9 @@ export async function sampleTreasuryConfig(
 
 export async function sampleVendorConfig(
   emulator: Emulator,
+  instance?: Number
 ): Promise<VendorConfiguration> {
-  const [policyId, _] = registryToken();
+  const [policyId, _] = getRegistryToken(instance || 0);
   return {
     registry_token: policyId,
     expiration: slot_to_unix(Slot(60 * 60 * 60 + 10)),
@@ -146,7 +151,7 @@ export function blocks(slot: Slot): number {
   return slot / 20;
 }
 
-export async function setupEmulator(txOuts: Core.TransactionOutput[] = []) {
+export async function setupEmulator(txOuts: Core.TransactionOutput[] = [], numInstances = 1) {
   // TODO: custom protocol parameters needed for plutus v3?
   const protocolParameters = {
     coinsPerUtxoByte: 4310,
@@ -239,28 +244,31 @@ export async function setupEmulator(txOuts: Core.TransactionOutput[] = []) {
 
   const emulator = new Emulator(txOuts, protocolParameters);
 
-  const { treasuryScript, vendorScript } = loadScripts(
-    Core.NetworkId.Testnet,
-    await sampleTreasuryConfig(emulator),
-    await sampleVendorConfig(emulator),
-  );
+  for(let i = 0; i < numInstances; i++) {
+    const { treasuryScript, vendorScript } = loadScripts(
+        Core.NetworkId.Testnet,
+        await sampleTreasuryConfig(emulator, i),
+        await sampleVendorConfig(emulator, i),
+      );
 
-  const [registryPolicy, registryName] = registryToken();
-  await emulator.register(
-    "Registry",
-    makeValue(5_000_000n, [registryPolicy + registryName, 1n]),
-    Data.serialize(ScriptHashRegistry, {
-      treasury: {
-        Script: [treasuryScript.credential.hash],
-      },
-      vendor: {
-        Script: [vendorScript.credential.hash],
-      },
-    }),
-  );
+      const [registryPolicy, registryName] = getRegistryToken(i);
+      await emulator.register(
+        "Registry",
+        makeValue(5_000_000n, [registryPolicy + registryName, 1n]),
+        Data.serialize(ScriptHashRegistry, {
+          treasury: {
+            Script: [treasuryScript.credential.hash],
+          },
+          vendor: {
+            Script: [vendorScript.credential.hash],
+          },
+        }),
+      );
 
-  await emulator.publishScript(treasuryScript.script.Script);
-  await emulator.publishScript(vendorScript.script.Script);
+      await emulator.publishScript(treasuryScript.script.Script);
+      await emulator.publishScript(vendorScript.script.Script);
+  }
+
   await emulator.register("MaliciousUser");
   await emulator.register(
     "Anyone",
