@@ -1,11 +1,12 @@
 import { beforeEach, describe, test } from "bun:test";
-import { Core, makeValue } from "@blaze-cardano/sdk";
+import { Core, makeValue, TxBuilder, Value } from "@blaze-cardano/sdk";
 import {
   Address,
   AssetId,
   Ed25519KeyHashHex,
   RewardAccount,
   Slot,
+  TransactionUnspentOutput,
 } from "@blaze-cardano/core";
 import { Emulator, EmulatorProvider } from "@blaze-cardano/emulator";
 import * as Data from "@blaze-cardano/data";
@@ -24,9 +25,11 @@ import {
   coreValueToContractsValue,
   slot_to_unix,
   unix_to_slot,
+  contractsValueToCoreValue,
 } from "../../shared";
 import {
   MultisigScript,
+  TreasuryTreasurySpend,
   VendorConfiguration,
   VendorDatum,
   VendorSpendRedeemer,
@@ -57,6 +60,7 @@ describe("", () => {
   let vendor: MultisigScript;
   let rewardAccount: RewardAccount;
   let vendorScript: VendorVendorSpend;
+  let treasuryScript: TreasuryTreasurySpend;
   let vendorScriptAddress: Address;
   let treasuryScriptAddress: Address;
   let provider: EmulatorProvider;
@@ -97,6 +101,7 @@ describe("", () => {
     rewardAccount = treasuryScriptManifest.rewardAccount;
     vendorScript = vendorScriptManifest.script;
     vendorScriptAddress = vendorScriptManifest.scriptAddress;
+    treasuryScript = treasuryScriptManifest.script;
     treasuryScriptAddress = treasuryScriptManifest.scriptAddress;
 
     emulator.accounts.set(rewardAccount, amount);
@@ -153,6 +158,42 @@ describe("", () => {
     refInput = emulator.lookupScript(vendorScript.Script);
   });
 
+  const addInputs = (tx: TxBuilder, inputs: [TransactionUnspentOutput], vendorAddr: Address) => {
+
+
+    let value = Value.zero();
+    for (const input of inputs) {
+      tx = tx.addInput(input, Data.serialize(VendorSpendRedeemer, "SweepVendor"));
+      let datum = Data.parse(
+        VendorDatum,
+        input.output().datum()!.asInlineData()!,
+      );
+      datum.payouts = datum.payouts.filter(
+        (p) => p.maturation < now.valueOf() && p.status === "Active",
+      );
+      let carryThrough = Value.sum(
+        datum.payouts.map((p) => contractsValueToCoreValue(p.value)),
+      );
+      let remainder = Value.merge(
+        input.output().amount(),
+        Value.negate(carryThrough),
+      );
+      if (!Value.empty(carryThrough)) {
+        tx.lockAssets(
+          vendorAddr,
+          carryThrough,
+          Data.serialize(VendorDatum, datum),
+        );
+      }
+      value = Value.merge(value, remainder);
+    }
+  
+    if (!Value.empty(value)) {
+      tx = tx.lockAssets(treasuryScriptAddress, value, Data.Void());
+    }
+    return tx
+  }
+ 
 
   describe("after the expiration", () => {
     beforeEach(() => {
@@ -161,28 +202,44 @@ describe("", () => {
       );
     });
     describe("anyone", () => {
-      describe("can sweep", () => {
-        test("native tokens to the treasury script", async () => {
+      describe("can partially sweep", () => {
+        test("and attach a staking credential to a vendor output", async () => {
+          let fullAddress = new Core.Address({
+              type: Core.AddressType.BasePaymentScriptStakeKey,
+              networkId: Core.NetworkId.Testnet,
+              paymentPart: {
+                type: Core.CredentialType.ScriptHash,
+                hash: vendorScript.Script.hash(),
+              },
+              delegationPart: {
+                type: Core.CredentialType.KeyHash,
+                hash: vendorScript.Script.hash(), // Just use an arbitrary hash
+              },
+          });
           await emulator.as("Anyone", async (blaze, addr) => {
-            console.log('Vendor utxos')
+            console.log('Vendor utxos without credential')
             await printUtxosAtAddress(vendorScriptAddress)
             console.log('Treasury utxos')
             await printUtxosAtAddress(treasuryScriptAddress)
-            console.log('User utxos')
-            await printUtxosAtAddress(addr)
+
+            let tx = blaze.newTransaction()
+                .addReferenceInput(registryInput)
+                .addReferenceInput(refInput)
+                .setValidFrom(unix_to_slot(BigInt(now.valueOf())))
+                .setValidUntil(unix_to_slot(BigInt(now.valueOf()) + thirtSixHours))
+            
+            tx = addInputs(tx, [fourthScriptInput], fullAddress)
+            
             await emulator.expectValidTransaction(
               blaze,
-              await sweep(configs, now, [fourthScriptInput], blaze),
+              tx
             );
-            console.log('Vendor utxos')
-            await printUtxosAtAddress(vendorScriptAddress)
+            console.log('Vendor utxos with stake credential')
+            await printUtxosAtAddress(fullAddress)
             console.log('Treasury utxos')
             await printUtxosAtAddress(treasuryScriptAddress)
-            console.log('User utxos')
-            await printUtxosAtAddress(addr)
           });
         });
-
       });
     });
   });
