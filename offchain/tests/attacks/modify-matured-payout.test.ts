@@ -98,7 +98,7 @@ describe('', () => {
 
     scriptInput = new Core.TransactionUnspentOutput(
       new Core.TransactionInput(Core.TransactionId('1'.repeat(64)), 0n),
-      new Core.TransactionOutput(vendorScriptAddress, makeValue(35_000_000n))
+      new Core.TransactionOutput(vendorScriptAddress, makeValue(30_000_000n))
     );
     firstDatum = {
       vendor: vendor,
@@ -115,7 +115,7 @@ describe('', () => {
         },
         {
           maturation: 10000n,
-          value: coreValueToContractsValue(makeValue(15_000_000n)),
+          value: coreValueToContractsValue(makeValue(10_000_000n)),
           status: 'Active',
         },
       ],
