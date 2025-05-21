@@ -201,11 +201,6 @@ describe('', () => {
               makeValue(30_000_000n, ['a'.repeat(56), 1n]),
               Data.serialize(VendorDatum, newDatum)
             );
-          // .lockAssets(
-          //   treasuryScriptAddress,
-          //   makeValue(5_000_000n),
-          //   Data.Void()
-          // );
 
           const completedTx = await tx.complete();
           signedTx = completedTx;
