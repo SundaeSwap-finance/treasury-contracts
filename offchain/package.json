@@ -2,17 +2,28 @@
   "name": "@sundae/treasury-funds",
   "module": "index.ts",
   "type": "module",
+  "bin": {
+    "treasury-funds": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "bun build cli.ts --outdir dist --target node && chmod +x dist/cli.js"
+  },
   "devDependencies": {
     "@blaze-cardano/emulator": "link:@blaze-cardano/emulator",
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "@types/commander": "^2.12.5",
+    "commander": "^14.0.0"
   },
   "peerDependencies": {
-    "typescript": "^5.0.0"
+    "typescript": "^5.8.2"
   },
   "dependencies": {
+    "@blaze-cardano/core": "link:@blaze-cardano/core",
+    "@blaze-cardano/data": "link:@blaze-cardano/data",
+    "@blaze-cardano/query": "link:@blaze-cardano/query",
     "@blaze-cardano/sdk": "link:@blaze-cardano/sdk",
     "@blaze-cardano/uplc": "link:@blaze-cardano/uplc",
-    "@blaze-cardano/data": "link:@blaze-cardano/data",
-    "@blaze-cardano/query": "link:@blaze-cardano/query"
+    "@inquirer/prompts": "^7.5.1",
+    "clipboardy": "^4.0.0"
   }
 }
