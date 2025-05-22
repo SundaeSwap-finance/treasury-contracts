@@ -38,7 +38,7 @@ import {
 
 describe("With misconfigured payouts", () => {
   let emulator: Emulator;
-  let config: VendorConfiguration;
+  let vendorConfig: VendorConfiguration;
   let scriptInput: Core.TransactionUnspentOutput;
   let inputDatum: VendorDatum;
   let refInput: Core.TransactionUnspentOutput;
@@ -47,6 +47,7 @@ describe("With misconfigured payouts", () => {
   let treasuryScriptAddress: Address;
   let vendorScript: VendorVendorSpend;
   let vendorScriptAddress: Address;
+  let expirationSlot: Slot;
 
   beforeEach(async () => {
     emulator = await setupEmulator();
@@ -58,12 +59,11 @@ describe("With misconfigured payouts", () => {
     );
     treasuryScriptAddress = treasuryScriptManifest.scriptAddress;
 
-    const vendorConfig = await sampleVendorConfig(emulator);
+    vendorConfig = await sampleVendorConfig(emulator);
     const vendorScriptManifest = loadVendorScript(
       Core.NetworkId.Testnet,
       vendorConfig,
     );
-    config = vendorConfig;
     vendorScript = vendorScriptManifest.script;
     vendorScriptAddress = vendorScriptManifest.scriptAddress;
 
@@ -81,23 +81,23 @@ describe("With misconfigured payouts", () => {
         makeValue(200_000_000n, ["a".repeat(56), 1n]),
       ),
     );
-    // Al payouts have a maturation after 15, which is the vendor contract
-    // expiration time.
+    // Al payouts are active and mature after the expiration date
+    expirationSlot = unix_to_slot(vendorConfig.expiration);
     inputDatum = {
       vendor: vendor,
       payouts: [
         {
-          maturation: slot_to_unix(Slot(17)),
+          maturation: slot_to_unix(Slot(expirationSlot.valueOf() + 1)),
           value: coreValueToContractsValue(makeValue(10_000_000n)),
           status: "Active",
         },
         {
-          maturation: slot_to_unix(Slot(18)),
+          maturation: slot_to_unix(Slot(expirationSlot.valueOf() + 2)),
           value: coreValueToContractsValue(makeValue(10_000_000n)),
           status: "Active",
         },
         {
-          maturation: slot_to_unix(Slot(19)),
+          maturation: slot_to_unix(Slot(expirationSlot.valueOf() + 3)),
           value: coreValueToContractsValue(makeValue(0n, ["a".repeat(56), 1n])),
           status: "Active",
         },
@@ -116,21 +116,24 @@ describe("With misconfigured payouts", () => {
     describe("can sweep", () => {
       test("mature, misconfigured payouts", async () => {
         await emulator.as(Sweeper, async (blaze) => {
-           // At this point the expiration date was reached (slot 15) and all payouts
+           // At this point the expiration date was reached and all payouts
            // have matured and are active (thus, they should not be sweepable!).
-          emulator.stepForwardToSlot(Slot(20));
+          const now = Slot(expirationSlot.valueOf() + 10);
+          emulator.stepForwardToSlot(now);
           const registryInput = await blaze.provider.getUnspentOutputByNFT(
-            AssetId(config.registry_token + toHex(Buffer.from("REGISTRY"))),
+            AssetId(vendorConfig.registry_token + toHex(Buffer.from("REGISTRY"))),
           );
-          // We set the lower bound to the expiration date, but any value
-          // larger or equal to the expiration and strictly lower than any
-          // payout's maturation will work.
-          const startInterval = new Date(Number(slot_to_unix(Slot(16))));
-          const endInterval = new Date(Number(slot_to_unix(Slot(22))))
-          const expiration = new Date(Number(config.expiration));
-          console.log("Start of interval", startInterval);
+          // We set the lower bound to the slot after the expiration, but any value
+          // larger to the expiration date and lower than the payouts'
+          // maturities will work.
+          const startInterval = new Date(Number(slot_to_unix(Slot(expirationSlot.valueOf() + 1))));
+          const endInterval = new Date(Number(slot_to_unix(Slot(now.valueOf() + 2))))
+          const expirationDate = new Date(Number(vendorConfig.expiration));
+          console.log("Start of validity interval", startInterval);
           console.log("End of validity interval", endInterval);
-          console.log("Time of expiration", expiration);
+          console.log("Date of expiration", expirationDate);
+          console.log("Current slot", now);
+          console.log("Expiration slot", expirationSlot);
           await emulator.expectValidTransaction(
             blaze,
             blaze.newTransaction()
