@@ -29,7 +29,14 @@ pub fn logic(
   // We don't check that *all* ADA is donated, in case we need a minUTxO to cover native assets
   // TODO: should we just make the tx builder cover minUTxO instead?
   expect Some(donation) = treasury_donation
-  expect donation >= lovelace_of(input_sum) - lovelace_of(output_sum)
+  let input_lovelace = lovelace_of(input_sum)
+  let output_lovelace = lovelace_of(output_sum)
+  expect donation >= input_lovelace - output_lovelace
+  // Must donate a sufficient portion of the treasury to prevent single-lovelace UTxO occupation attacks
+  // 5 ADA *should* be enough to cover minUTxO if there are native tokens left, and be small enough to not materially impact treasury balances
+  // We check against donation - input_lovelace, rather than output_lovelace, *just in case* 5 ADA isn't enough for minUTxO
+  // in such cases, the transaction submitter would just need to cover any extra minUTxO requirements
+  expect input_lovelace - donation <= 5_000_000
 
   // Funds can be swept back to the treasury by anyone after the deadline,
   // or with permissions from the oversight committee early

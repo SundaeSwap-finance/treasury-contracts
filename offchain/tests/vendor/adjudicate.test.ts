@@ -1,5 +1,6 @@
 import {
   Address,
+  AssetId,
   Ed25519KeyHashHex,
   RewardAccount,
   Slot,
@@ -21,11 +22,13 @@ import {
   MultisigScript,
   VendorConfiguration,
   VendorDatum,
+  VendorVendorSpend,
 } from "../../src/types/contracts";
 import { adjudicate } from "../../src/vendor/adjudicate";
 import {
   pause_key,
   Pauser,
+  registryToken,
   resume_key,
   Resumer,
   sampleTreasuryConfig,
@@ -49,12 +52,13 @@ describe("", () => {
   let fourthDatum: VendorDatum;
   let fifthScriptInput: Core.TransactionUnspentOutput;
   let fifthDatum: VendorDatum;
-  // let refInput: Core.TransactionUnspentOutput | undefined;
+  let refInput: Core.TransactionUnspentOutput;
+  let registryInput: Core.TransactionUnspentOutput;
   let vendor: MultisigScript;
   let pauseSigner: Ed25519KeyHashHex;
   let resumeSigner: Ed25519KeyHashHex;
   let rewardAccount: RewardAccount;
-  // let vendorScript: VendorVendorSpend;
+  let vendorScript: VendorVendorSpend;
   let vendorScriptAddress: Address;
 
   beforeEach(async () => {
@@ -70,8 +74,8 @@ describe("", () => {
       vendorConfig,
     );
     config = vendorConfig;
-    rewardAccount = treasuryScriptManifest.rewardAccount;
-    // vendorScript = vendorScriptManifest.script;
+    rewardAccount = treasuryScriptManifest.rewardAccount!;
+    vendorScript = vendorScriptManifest.script;
     vendorScriptAddress = vendorScriptManifest.scriptAddress;
 
     emulator.accounts.set(rewardAccount, amount);
@@ -222,8 +226,15 @@ describe("", () => {
         Core.Datum.newInlineData(Data.serialize(VendorDatum, fifthDatum)),
       );
     emulator.addUtxo(fifthScriptInput);
-
-    // refInput = emulator.lookupScript(vendorScript.Script);
+    let [registryPolicy, registryName] = registryToken();
+    registryInput = emulator.utxos().find((u) =>
+      u
+        .output()
+        .amount()
+        .multiasset()
+        ?.get(AssetId(registryPolicy + registryName)),
+    )!;
+    refInput = emulator.lookupScript(vendorScript.Script);
   });
 
   describe("the oversight committee", () => {

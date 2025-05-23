@@ -8,6 +8,7 @@ use types.{
   Adjudicate, Malformed, Modify, SweepVendor, VendorConfiguration, VendorDatum,
   VendorSpendRedeemer, Withdraw,
 }
+use utilities.{ensure_compliant_scripts, find_script_hash_registry}
 
 /// A vendor script, for an ongoing project with an owner
 validator vendor(config: VendorConfiguration) {
@@ -19,14 +20,17 @@ validator vendor(config: VendorConfiguration) {
   ) {
     expect Some(spent_input) = find_input(self.inputs, utxo)
     let account = spent_input.output.address.payment_credential
+    let registry =
+      find_script_hash_registry(self.reference_inputs, config.registry_token)
+    ensure_compliant_scripts(self.inputs, registry)
 
     when redeemer is {
       Withdraw -> withdraw.logic(account, self)
       Adjudicate { statuses } ->
         adjudicate.logic(statuses, config, account, self)
-      Modify -> modify.logic(config, account, self)
-      SweepVendor -> sweep.logic(config, account, self)
-      Malformed -> malformed.logic(config, account, self)
+      Modify -> modify.logic(config, account, registry, self)
+      SweepVendor -> sweep.logic(config, account, registry, self)
+      Malformed -> malformed.logic(account, registry, self)
     }
 
     True

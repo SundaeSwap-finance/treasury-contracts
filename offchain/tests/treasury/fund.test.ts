@@ -65,7 +65,7 @@ describe("When funding", () => {
       vendorConfig,
     );
     configs = { treasury: treasuryConfig, vendor: vendorConfig };
-    rewardAccount = treasuryScriptManifest.rewardAccount;
+    rewardAccount = treasuryScriptManifest.rewardAccount!;
     treasuryScript = treasuryScriptManifest.script;
     vendorScript = vendorScriptManifest.script;
     treasuryScriptAddress = treasuryScriptManifest.scriptAddress;

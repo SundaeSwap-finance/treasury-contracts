@@ -1,6 +1,6 @@
 use aiken/collection/list
 use aiken/option
-use cardano/address.{Credential}
+use cardano/address.{Credential, Script, VerificationKey}
 use cardano/assets.{PolicyId, Value, lovelace_of, without_lovelace}
 use cardano/transaction.{InlineDatum, Input, Output}
 use types.{Payout, ScriptHashRegistry, VendorDatum, registry_token_name}
@@ -23,6 +23,25 @@ pub fn find_script_hash_registry(
   expect InlineDatum(datum) = input.output.datum
   expect registry: ScriptHashRegistry = datum
   registry
+}
+
+pub fn ensure_compliant_scripts(
+  inputs: List<Input>,
+  registry: ScriptHashRegistry,
+) {
+  expect
+    inputs
+      |> list.all(
+          fn(input) {
+            when input.output.address.payment_credential is {
+              VerificationKey(_) -> True
+              Script(_) -> or {
+                  input.output.address.payment_credential == registry.treasury,
+                  input.output.address.payment_credential == registry.vendor,
+                }
+            }
+          },
+        )
 }
 
 // Get the output of each input
@@ -83,6 +102,7 @@ pub fn payout_sum(
                     }
                   },
                 )
+          expect equal_plus_min_ada(this_payout_sum, output.value)
           assets.merge(total, this_payout_sum)
         },
       )

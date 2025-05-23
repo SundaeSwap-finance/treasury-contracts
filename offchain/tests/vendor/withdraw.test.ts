@@ -1,5 +1,6 @@
 import {
   Address,
+  AssetId,
   Ed25519KeyHashHex,
   RewardAccount,
   Slot,
@@ -23,6 +24,7 @@ import {
 } from "../../src/types/contracts";
 import { withdraw } from "../../src/vendor/withdraw";
 import {
+  registryToken,
   sampleTreasuryConfig,
   sampleVendorConfig,
   setupEmulator,
@@ -46,6 +48,7 @@ describe("When withdrawing from the vendor script", () => {
   let fifthScriptInput: Core.TransactionUnspentOutput;
   let fifthDatum: VendorDatum;
   let refInput: Core.TransactionUnspentOutput;
+  let registryInput: Core.TransactionUnspentOutput;
   let vendor: MultisigScript;
   let vendorSigner: Ed25519KeyHashHex;
   let rewardAccount: RewardAccount;
@@ -64,7 +67,7 @@ describe("When withdrawing from the vendor script", () => {
       vendorConfig,
     );
     config = vendorConfig;
-    rewardAccount = treasuryScriptManifest.rewardAccount;
+    rewardAccount = treasuryScriptManifest.rewardAccount!;
     vendorScript = vendorScriptManifest.script;
     vendorScriptAddress = vendorScriptManifest.scriptAddress;
 
@@ -215,7 +218,14 @@ describe("When withdrawing from the vendor script", () => {
         Core.Datum.newInlineData(Data.serialize(VendorDatum, fifthDatum)),
       );
     emulator.addUtxo(fifthScriptInput);
-
+    let [registryPolicy, registryName] = registryToken();
+    registryInput = emulator.utxos().find((u) =>
+      u
+        .output()
+        .amount()
+        .multiasset()
+        ?.get(AssetId(registryPolicy + registryName)),
+    )!;
     refInput = emulator.lookupScript(vendorScript.Script);
   });
 
@@ -338,6 +348,7 @@ describe("When withdrawing from the vendor script", () => {
         await emulator.expectScriptFailure(
           blaze
             .newTransaction()
+            .addReferenceInput(registryInput)
             .addReferenceInput(refInput)
             .setValidFrom(Slot(0))
             .addRequiredSigner(vendorSigner)
@@ -364,6 +375,7 @@ describe("When withdrawing from the vendor script", () => {
         await emulator.expectScriptFailure(
           blaze
             .newTransaction()
+            .addReferenceInput(registryInput)
             .addReferenceInput(refInput)
             .setValidFrom(Slot(0))
             .addRequiredSigner(vendorSigner)
@@ -403,6 +415,7 @@ describe("When withdrawing from the vendor script", () => {
         await emulator.expectScriptFailure(
           blaze
             .newTransaction()
+            .addReferenceInput(registryInput)
             .addReferenceInput(refInput)
             .setValidFrom(Slot(3))
             .addRequiredSigner(vendorSigner)
@@ -442,6 +455,7 @@ describe("When withdrawing from the vendor script", () => {
         await emulator.expectScriptFailure(
           blaze
             .newTransaction()
+            .addReferenceInput(registryInput)
             .addReferenceInput(refInput)
             .setValidFrom(Slot(3))
             .addRequiredSigner(vendorSigner)
@@ -481,6 +495,7 @@ describe("When withdrawing from the vendor script", () => {
         await emulator.expectScriptFailure(
           blaze
             .newTransaction()
+            .addReferenceInput(registryInput)
             .addReferenceInput(refInput)
             .setValidFrom(Slot(3))
             .addRequiredSigner(vendorSigner)
@@ -518,6 +533,7 @@ describe("When withdrawing from the vendor script", () => {
         await emulator.expectScriptFailure(
           blaze
             .newTransaction()
+            .addReferenceInput(registryInput)
             .addReferenceInput(refInput)
             .setValidFrom(Slot(3))
             .addRequiredSigner(vendorSigner)
@@ -555,6 +571,7 @@ describe("When withdrawing from the vendor script", () => {
         await emulator.expectScriptFailure(
           blaze
             .newTransaction()
+            .addReferenceInput(registryInput)
             .addReferenceInput(refInput)
             .setValidFrom(Slot(3))
             .addRequiredSigner(vendorSigner)
@@ -592,6 +609,7 @@ describe("When withdrawing from the vendor script", () => {
         await emulator.expectScriptFailure(
           blaze
             .newTransaction()
+            .addReferenceInput(registryInput)
             .addReferenceInput(refInput)
             .setValidFrom(Slot(3))
             .addRequiredSigner(vendorSigner)

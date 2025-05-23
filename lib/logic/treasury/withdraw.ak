@@ -2,8 +2,9 @@ use aiken/collection/list
 use aiken/collection/pairs
 use cardano/address.{Credential}
 use cardano/assets.{Lovelace, lovelace_of}
-use cardano/transaction.{Input, Output}
-use utilities.{value_sum}
+use cardano/transaction.{Transaction}
+use types.{ScriptHashRegistry}
+use utilities.{outputs_of, value_sum}
 
 // Check whether a withdraw from the reward account is done correctly.
 // In particular:
@@ -17,11 +18,14 @@ use utilities.{value_sum}
 pub fn logic(
   withdrawals: Pairs<Credential, Lovelace>,
   account: Credential,
-  inputs: List<Input>,
-  outputs: List<Output>,
+  registry: ScriptHashRegistry,
+  self: Transaction,
 ) -> Bool {
+  let Transaction { inputs, outputs, .. } = self
   // There must be only one withdrawal from this credential
   expect [amount] = withdrawals |> pairs.get_all(account)
+
+  let inputs = outputs_of(inputs)
 
   // To prevent shenanigans where a disbursement equal to the amount is used to trick
   // the withdrawal, we assert that `account` never occurs in the inputs
@@ -30,7 +34,12 @@ pub fn logic(
   expect None =
     inputs
       |> list.find(
-          fn(input) { input.output.address.payment_credential == account },
+          fn(input) {
+            or {
+              input.address.payment_credential == registry.treasury,
+              input.address.payment_credential == registry.vendor,
+            }
+          },
         )
 
   // Sum up the amounts of the withdrawal paid to `account`

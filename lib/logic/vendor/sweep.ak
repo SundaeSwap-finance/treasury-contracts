@@ -1,12 +1,11 @@
 use aiken/collection/list
 use aiken/interval.{is_entirely_after}
+use aiken/option
 use cardano/address.{Credential}
 use cardano/assets
 use cardano/transaction.{InlineDatum, Transaction}
-use types.{Active, VendorConfiguration, VendorDatum}
-use utilities.{
-  equal_plus_min_ada, find_script_hash_registry, outputs_of, value_sum,
-}
+use types.{Active, ScriptHashRegistry, VendorConfiguration, VendorDatum}
+use utilities.{equal_plus_min_ada, outputs_of, value_sum}
 
 // After the expiration, all paused, unmatured funds can be swept back to the treasury contract
 // (and thus back to the cardano treasury).
@@ -18,19 +17,22 @@ use utilities.{
 pub fn logic(
   config: VendorConfiguration,
   account: Credential,
+  registry: ScriptHashRegistry,
   transaction: Transaction,
 ) {
-  let VendorConfiguration { registry_token, .. } = config
-  let Transaction { inputs, reference_inputs, outputs, validity_range, .. } =
-    transaction
-
-  let registry = find_script_hash_registry(reference_inputs, registry_token)
+  let Transaction { inputs, outputs, validity_range, .. } = transaction
 
   // Can only sweep after the global expiration
   expect is_entirely_after(validity_range, config.expiration)
 
   let inputs = outputs_of(inputs)
-  let treasury_input_sum = value_sum(inputs, registry.treasury, True)
+  expect
+    option.is_none(
+      inputs
+        |> list.find(
+            fn(input) { input.address.payment_credential == registry.treasury },
+          ),
+    )
 
   // We choose to only handle sweeping one UTxO at a time,
   // to simplify the contract logic
@@ -66,16 +68,13 @@ pub fn logic(
   let treasury_output_sum = value_sum(outputs, registry.treasury, False)
 
   let swept_value = assets.merge(input.value, assets.negate(matured_value))
-  expect
-    equal_plus_min_ada(
-      assets.merge(treasury_input_sum, swept_value),
-      treasury_output_sum,
-    )
+  expect equal_plus_min_ada(swept_value, treasury_output_sum)
   expect
     when expected_payouts is {
       [] -> vendor_outputs == []
       _ -> {
         expect [vendor_output] = vendor_outputs
+        expect option.is_none(vendor_output.address.stake_credential)
         expect InlineDatum(out_datum) = vendor_output.datum
         expect out_datum: VendorDatum = out_datum
         and {

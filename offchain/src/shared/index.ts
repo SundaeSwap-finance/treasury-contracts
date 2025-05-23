@@ -1,4 +1,3 @@
-import { Slot, Value } from "@blaze-cardano/core";
 import { Core, makeValue } from "@blaze-cardano/sdk";
 import { type Cardano } from "@cardano-sdk/core";
 
@@ -8,11 +7,26 @@ import {
   VendorConfiguration,
   VendorVendorSpend,
 } from "../types/contracts";
+import {
+  Address,
+  RewardAccount,
+  Slot,
+  Value,
+  type CredentialCore,
+} from "@blaze-cardano/core";
+
+export interface ICompiledScript<T, C> {
+  config: C;
+  script: T;
+  credential: CredentialCore;
+  rewardAccount?: RewardAccount;
+  scriptAddress: Address;
+}
 
 export function loadTreasuryScript(
   network: Core.NetworkId,
   config: TreasuryConfiguration,
-) {
+): ICompiledScript<TreasuryTreasuryWithdraw, TreasuryConfiguration> {
   const script = new TreasuryTreasuryWithdraw(config);
   const credential: Cardano.Credential = {
     type: Core.CredentialType.ScriptHash,
@@ -25,6 +39,7 @@ export function loadTreasuryScript(
     paymentPart: credential,
   });
   return {
+    config,
     script,
     credential,
     rewardAccount,
@@ -35,7 +50,7 @@ export function loadTreasuryScript(
 export function loadVendorScript(
   network: Core.NetworkId,
   config: VendorConfiguration,
-) {
+): ICompiledScript<VendorVendorSpend, VendorConfiguration> {
   const script = new VendorVendorSpend(config);
   const credential: Cardano.Credential = {
     type: Core.CredentialType.ScriptHash,
@@ -47,17 +62,26 @@ export function loadVendorScript(
     paymentPart: credential,
   });
   return {
+    config,
     script,
     credential,
     scriptAddress,
   };
 }
 
+export interface ICompiledScripts {
+  treasuryScript: ICompiledScript<
+    TreasuryTreasuryWithdraw,
+    TreasuryConfiguration
+  >;
+  vendorScript: ICompiledScript<VendorVendorSpend, VendorConfiguration>;
+}
+
 export function loadScripts(
   network: Core.NetworkId,
   treasuryConfig: TreasuryConfiguration,
   vendorConfig: VendorConfiguration,
-) {
+): ICompiledScripts {
   const treasuryScript = loadTreasuryScript(network, treasuryConfig);
   const vendorScript = loadVendorScript(network, vendorConfig);
   return {
@@ -98,7 +122,7 @@ export function contractsValueToCoreValue(amount: {
 }): Value {
   const values: [string, bigint][] = [];
   for (const [policy, assets] of Object.entries(amount)) {
-    if (policy == "") {
+    if (policy === "") {
       continue;
     }
     for (const [assetName, amount] of Object.entries(assets)) {

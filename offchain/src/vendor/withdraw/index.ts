@@ -1,16 +1,18 @@
 import {
-  Address,
-  Ed25519KeyHashHex,
-  TransactionUnspentOutput,
-} from "@blaze-cardano/core";
-import * as Data from "@blaze-cardano/data";
-import {
   TxBuilder,
   Value,
   type Blaze,
   type Provider,
   type Wallet,
 } from "@blaze-cardano/sdk";
+import {
+  Address,
+  AssetId,
+  Ed25519KeyHashHex,
+  toHex,
+  TransactionUnspentOutput,
+} from "@blaze-cardano/core";
+import * as Data from "@blaze-cardano/data";
 import {
   contractsValueToCoreValue,
   loadVendorScript,
@@ -34,11 +36,16 @@ export async function withdraw<P extends Provider, W extends Wallet>(
     blaze.provider.network,
     config,
   );
+  const registryInput = await blaze.provider.getUnspentOutputByNFT(
+    AssetId(config.registry_token + toHex(Buffer.from("REGISTRY"))),
+  );
+
   const refInput = await blaze.provider.resolveScriptRef(script.Script);
   if (!refInput)
     throw new Error("Could not find vendor script reference on-chain");
   let tx = blaze
     .newTransaction()
+    .addReferenceInput(registryInput)
     .addReferenceInput(refInput)
     .setValidFrom(unix_to_slot(BigInt(now.valueOf())));
 
@@ -51,7 +58,7 @@ export async function withdraw<P extends Provider, W extends Wallet>(
     const input = inputs[idx];
     const datum = Data.parse(
       VendorDatum,
-      input.output().datum()?.asInlineData()!,
+      input.output().datum()?.asInlineData(),
     );
     tx = tx.addInput(input, Data.serialize(VendorSpendRedeemer, "Withdraw"));
     const newDatum: VendorDatum = {
@@ -61,7 +68,7 @@ export async function withdraw<P extends Provider, W extends Wallet>(
     let thisValue = Value.zero();
     for (const payout of datum.payouts) {
       if (
-        payout.status == "Active" &&
+        payout.status === "Active" &&
         payout.maturation < BigInt(now.valueOf())
       ) {
         thisValue = Value.merge(

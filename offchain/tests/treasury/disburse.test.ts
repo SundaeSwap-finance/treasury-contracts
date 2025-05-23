@@ -52,7 +52,7 @@ describe("When disbursing", () => {
     const treasury = loadTreasuryScript(Core.NetworkId.Testnet, treasuryConfig);
     // const vendorScript = loadVendorScript(Core.NetworkId.Testnet, vendorConfig);
     configs = { treasury: treasuryConfig, vendor: vendorConfig };
-    rewardAccount = treasury.rewardAccount;
+    rewardAccount = treasury.rewardAccount!;
     treasuryScript = treasury.script;
     treasuryScriptAddress = treasury.scriptAddress;
 

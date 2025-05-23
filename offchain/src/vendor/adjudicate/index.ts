@@ -56,7 +56,7 @@ export async function adjudicate<P extends Provider, W extends Wallet>(
 
   const oldDatum = Data.parse(
     VendorDatum,
-    input.output().datum()?.asInlineData()!,
+    input.output().datum()?.asInlineData(),
   );
   if (statuses.length !== oldDatum.payouts.length) {
     throw new Error("not enough statuses");

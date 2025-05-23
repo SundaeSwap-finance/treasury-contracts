@@ -64,7 +64,7 @@ describe("", () => {
     );
     configs = { treasury: treasuryConfig, vendor: vendorConfig };
     now = new Date(Number(configs.vendor.expiration + 1000n));
-    rewardAccount = treasuryScriptManifest.rewardAccount;
+    rewardAccount = treasuryScriptManifest.rewardAccount!;
     vendorScript = vendorScriptManifest.script;
     vendorScriptAddress = vendorScriptManifest.scriptAddress;
 

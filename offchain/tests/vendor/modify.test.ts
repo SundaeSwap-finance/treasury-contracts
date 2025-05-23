@@ -73,7 +73,7 @@ describe("", () => {
       vendorConfig,
     );
     configs = { treasury: treasuryConfig, vendor: vendorConfig };
-    rewardAccount = treasuryScriptManifest.rewardAccount;
+    rewardAccount = treasuryScriptManifest.rewardAccount!;
     vendorScript = vendorScriptManifest.script;
     vendorScriptAddress = vendorScriptManifest.scriptAddress;
 

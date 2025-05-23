@@ -55,7 +55,7 @@ describe("With a malformed datum", () => {
       vendorConfig,
     );
     configs = { treasury: treasuryConfig, vendor: vendorConfig };
-    rewardAccount = treasuryScriptManifest.rewardAccount;
+    rewardAccount = treasuryScriptManifest.rewardAccount!;
     treasuryScript = treasuryScriptManifest.script;
     vendorScript = vendorScriptManifest.script;
     vendorScriptAddress = vendorScriptManifest.scriptAddress;
