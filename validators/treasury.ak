@@ -1,5 +1,7 @@
+use aiken/interval.{is_entirely_after}
 use cardano/address.{Credential}
 use cardano/assets.{from_asset_list}
+use cardano/certificate.{AlwaysAbstain, Certificate, DelegateVote}
 use cardano/transaction.{Input,
   Output, OutputReference, Transaction, find_input}
 use logic/treasury/disburse
@@ -7,6 +9,7 @@ use logic/treasury/fund
 use logic/treasury/reorganize
 use logic/treasury/sweep
 use logic/treasury/withdraw
+use sundae/multisig.{satisfied}
 use types.{
   Disburse, Fund, Reorganize, SweepTreasury, TreasuryConfiguration,
   TreasurySpendRedeemer,
@@ -64,11 +67,30 @@ validator treasury(config: TreasuryConfiguration) {
     False
   }
 
-  // The funds received by the treasury are not allowed to publish any certificates
-  // In particular, this prevents the stake script from delegating to a stake pool,
-  // registering a stake pool, registering as a DRep, or delegating to a DRep.
-  publish(_r, _c, _t) {
-    False
+  // Article IV - Section 5 of the constitution requires that funds:
+  //
+  // - SHALL NOT be delegated to an SPO (which is utterly stupid but whatever)
+  // - MUST be delegated to an auto-abstain DRep
+  //
+  publish(_r, certificate: Certificate, self: Transaction) {
+    let Transaction { extra_signatories, validity_range, withdrawals, .. } =
+      self
+    when certificate is {
+      Certificate.RegisterCredential { .. } -> True
+      Certificate.UnregisterCredential { .. } -> or {
+          is_entirely_after(validity_range, config.expiration)?,
+          satisfied(
+            config.permissions.unregister,
+            extra_signatories,
+            validity_range,
+            withdrawals,
+          )?,
+        }
+      Certificate.DelegateCredential { delegate, .. } |
+      Certificate.RegisterAndDelegateCredential { delegate, .. } ->
+        delegate == DelegateVote(AlwaysAbstain)
+      _ -> False
+    }
   }
 
   else(_) {

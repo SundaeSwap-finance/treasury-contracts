@@ -1,6 +1,5 @@
 use aiken/collection/list
-use aiken/option
-use cardano/address.{Credential, Script, VerificationKey}
+use cardano/address.{Credential, Referenced, Script, VerificationKey}
 use cardano/assets.{PolicyId, Value, lovelace_of, without_lovelace}
 use cardano/transaction.{InlineDatum, Input, Output}
 use types.{Payout, ScriptHashRegistry, VendorDatum, registry_token_name}
@@ -56,25 +55,58 @@ pub fn equal_plus_min_ada(expected: Value, actual: Value) -> Bool {
   }
 }
 
-// Sum up all assets on the `outputs` held at `account`
-// Note: can also be used to traverse the inputs by mapping over them first
-pub fn value_sum(
-  outputs: List<Output>,
+// Select all outputs with a matching payment credential. Allowing stake credential to be whatever.
+pub fn select_by_payment_credential(account: Credential) -> fn(Output) -> Bool {
+  fn(output: Output) { output.address.payment_credential == account }
+}
+
+// Select all outputs with a matching payment credential, but requires no stake credential whatsoever.
+pub fn select_by_payment_credential_strict(
   account: Credential,
-  allow_stake: Bool,
-) -> Value {
+) -> fn(Output) -> Bool {
+  fn(output: Output) {
+    let target = output.address
+    if target.payment_credential == account {
+      expect None = target.stake_credential
+      True
+    } else {
+      False
+    }
+  }
+}
+
+// Select all outputs with a matching payment credential AND stake credential.
+pub fn select_by_address(account: Credential) -> fn(Output) -> Bool {
+  fn(output: Output) {
+    let target = output.address
+    if target.payment_credential == account {
+      // We cannot simply forward the source delegation credential because we might
+      // be re-organizing ill-formed UTxO; so we cannot ensure that the source UTxO
+      // was defined with the proper stake credential. Yet, we can certainly enforce
+      // that the output's delegation credential matches the script.
+      expect target.stake_credential == Some(Referenced.Inline(account))
+      True
+    } else {
+      False
+    }
+  }
+}
+
+// Sum up all assets on the `outputs` held at `account` using a selection function.
+// The selection function may crash the program if it meets unnacceptable conditions.
+// Note: can also be used to traverse the inputs by mapping over them first
+pub fn value_sum(outputs: List<Output>, select: fn(Output) -> Bool) -> Value {
   outputs
-    |> list.filter(fn(output) { output.address.payment_credential == account })
-    |> list.map(
-        fn(output) {
-          expect or {
-              allow_stake,
-              option.is_none(output.address.stake_credential),
-            }
-          output.value
+    |> list.reduce(
+        assets.zero,
+        fn(total, output) {
+          if select(output) {
+            assets.merge(total, output.value)
+          } else {
+            total
+          }
         },
       )
-    |> list.reduce(assets.zero, assets.merge)
 }
 
 pub fn payout_sum(

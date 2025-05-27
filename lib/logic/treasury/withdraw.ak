@@ -4,7 +4,7 @@ use cardano/address.{Credential}
 use cardano/assets.{Lovelace, lovelace_of}
 use cardano/transaction.{Transaction}
 use types.{ScriptHashRegistry}
-use utilities.{outputs_of, value_sum}
+use utilities.{outputs_of, select_by_address, value_sum}
 
 // Check whether a withdraw from the reward account is done correctly.
 // In particular:
@@ -45,7 +45,8 @@ pub fn logic(
   // Sum up the amounts of the withdrawal paid to `account`
   // This lets us split the funds across multiple UTxOs for accounting purposes
   // but still ensures that the total amount is correct
-  let output_sum = value_sum(outputs, account, False)
+  let output_sum = value_sum(outputs, select_by_address(account))
+
   // Ensure that the output sum is *at least* the amount
   // This allows some flexibility in case of minUTxO issues, which are unlikely
   // NOTE: We do *not* let the fee be deducted here, because that would allow someone to set the fee very large!

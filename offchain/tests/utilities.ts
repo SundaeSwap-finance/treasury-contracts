@@ -42,6 +42,7 @@ export const Sweeper = "Sweeper";
 export const Disburser = "Disburser";
 export const Funder = "Funder";
 export const Reorganizer = "Reorganizer";
+export const Unregisterer = "Unregisterer";
 export const Vendor = "Vendor";
 export const Pauser = "Pauser";
 export const Resumer = "Resumer";
@@ -72,6 +73,13 @@ export async function reorganize_key(
   emulator: Emulator,
 ): Promise<Core.Hash28ByteBase16> {
   return (await emulator.register(Reorganizer)).asBase()?.getPaymentCredential()
+    .hash!;
+}
+
+export async function unregister_key(
+  emulator: Emulator,
+): Promise<Core.Hash28ByteBase16> {
+  return (await emulator.register(Unregisterer)).asBase()?.getPaymentCredential()
     .hash!;
 }
 
@@ -131,6 +139,11 @@ export async function sampleTreasuryConfig(
       reorganize: {
         Signature: {
           key_hash: await reorganize_key(emulator),
+        },
+      },
+      unregister: {
+        Signature: {
+          key_hash: await unregister_key(emulator),
         },
       },
     },

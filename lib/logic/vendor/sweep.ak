@@ -5,7 +5,7 @@ use cardano/address.{Credential}
 use cardano/assets
 use cardano/transaction.{InlineDatum, Transaction}
 use types.{Active, ScriptHashRegistry, VendorConfiguration, VendorDatum}
-use utilities.{equal_plus_min_ada, outputs_of, value_sum}
+use utilities.{equal_plus_min_ada, outputs_of, select_by_address, value_sum}
 
 // After the expiration, all paused, unmatured funds can be swept back to the treasury contract
 // (and thus back to the cardano treasury).
@@ -65,7 +65,9 @@ pub fn logic(
       |> list.filter(
           fn(output) { output.address.payment_credential == account },
         )
-  let treasury_output_sum = value_sum(outputs, registry.treasury, False)
+
+  let treasury_output_sum =
+    value_sum(outputs, select_by_address(registry.treasury))
 
   let swept_value = assets.merge(input.value, assets.negate(matured_value))
   expect equal_plus_min_ada(swept_value, treasury_output_sum)

@@ -4,7 +4,10 @@ use cardano/assets.{Value, merge, negate}
 use cardano/transaction.{Transaction}
 use sundae/multisig.{satisfied}
 use types.{ScriptHashRegistry, TreasuryConfiguration}
-use utilities.{equal_plus_min_ada, outputs_of, payout_sum, value_sum}
+use utilities.{
+  equal_plus_min_ada, outputs_of, payout_sum, select_by_address,
+  select_by_payment_credential, select_by_payment_credential_strict, value_sum,
+}
 
 // Pay out funds to the vendor script, to fund a new project
 pub fn logic(
@@ -27,10 +30,12 @@ pub fn logic(
   // We need to make sure that the expected amount leaves the control of the treasury script
   // This means summing up the outputs and inputs at each script
   let inputs = outputs_of(inputs)
-  let input_sum = value_sum(inputs, account, True)
-  let input_vendor_sum = value_sum(inputs, registry.vendor, True)
-  let output_sum = value_sum(outputs, account, False)
-  let output_vendor_sum = value_sum(outputs, registry.vendor, False)
+  let input_sum = value_sum(inputs, select_by_payment_credential(account))
+  let input_vendor_sum =
+    value_sum(inputs, select_by_payment_credential(registry.vendor))
+  let output_sum = value_sum(outputs, select_by_address(account))
+  let output_vendor_sum =
+    value_sum(outputs, select_by_payment_credential_strict(registry.vendor))
 
   // We can't let you spend from the vendor script here, as it might mess with the sum comparisons
   // TODO: is this true? can we get by without it because the way we compare sums would imply it would fail?

@@ -232,7 +232,7 @@ describe("When sweeping", () => {
           );
         });
       });
-      test("cannot attach their own staking address", async () => {
+      test("cannot transform stake credential to key", async () => {
         const fullAddress = new Core.Address({
           type: Core.AddressType.BasePaymentScriptStakeKey,
           networkId: Core.NetworkId.Testnet,
@@ -241,8 +241,8 @@ describe("When sweeping", () => {
             hash: treasuryScript.hash(),
           },
           delegationPart: {
-            type: Core.CredentialType.KeyHash,
-            hash: treasuryScript.hash(), // Just use an arbitrary hash
+            type: Core.CredentialType.KeyHash, // Just use an arbitrary hash
+            hash: treasuryScript.hash(),
           },
         });
         await emulator.as("MaliciousUser", async (blaze) => {
@@ -262,7 +262,41 @@ describe("When sweeping", () => {
               .addReferenceInput(registryInput)
               .addReferenceInput(refInput)
               .setDonation(withAssetScriptInput.output().amount().coin()),
-            /option.is_none\(output.address.stake_credential\)/,
+            /expect target.stake_credential == Some\(Referenced.Inline\(account\)\)/,
+          );
+        });
+      });
+      test("cannot attach their own staking address", async () => {
+        const fullAddress = new Core.Address({
+          type: Core.AddressType.BasePaymentScriptStakeScript,
+          networkId: Core.NetworkId.Testnet,
+          paymentPart: {
+            type: Core.CredentialType.ScriptHash,
+            hash: treasuryScript.hash(),
+          },
+          delegationPart: {
+            type: Core.CredentialType.ScriptHash,
+            hash: "0".repeat(56), // Just use an arbitrary hash
+          },
+        });
+        await emulator.as("MaliciousUser", async (blaze) => {
+          await emulator.expectScriptFailure(
+            blaze
+              .newTransaction()
+              .addInput(
+                withAssetScriptInput,
+                Data.serialize(TreasurySpendRedeemer, "SweepTreasury"),
+              )
+              .lockAssets(
+                fullAddress,
+                makeValue(2_000_000n, ["a".repeat(56), 1n]),
+                Data.Void(),
+              )
+              .setValidFrom(unix_to_slot(config.expiration + 1000n))
+              .addReferenceInput(registryInput)
+              .addReferenceInput(refInput)
+              .setDonation(withAssetScriptInput.output().amount().coin()),
+            /expect target.stake_credential == Some\(Referenced.Inline\(account\)\)/,
           );
         });
       });

@@ -4,7 +4,9 @@ use cardano/assets.{lovelace_of, without_lovelace}
 use cardano/transaction.{Transaction}
 use sundae/multisig.{satisfied}
 use types.{TreasuryConfiguration}
-use utilities.{outputs_of, value_sum}
+use utilities.{
+  outputs_of, select_by_address, select_by_payment_credential, value_sum,
+}
 
 // Check whether the funds are swept back to the treasury correctly
 // In particular,
@@ -22,8 +24,10 @@ pub fn logic(
     treasury_donation,
     ..
   } = transaction
-  let input_sum = value_sum(outputs_of(inputs), account, True)
-  let output_sum = value_sum(outputs, account, False)
+  let input_sum =
+    value_sum(outputs_of(inputs), select_by_payment_credential(account))
+
+  let output_sum = value_sum(outputs, select_by_address(account))
 
   // Any ADA from the inputs that *isn't* retained in the outputs, must be donated to the treasury
   // We don't check that *all* ADA is donated, in case we need a minUTxO to cover native assets

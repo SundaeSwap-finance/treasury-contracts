@@ -4,7 +4,10 @@ use cardano/assets.{Value, lovelace_of, merge, negate}
 use cardano/transaction.{Transaction}
 use sundae/multisig.{satisfied}
 use types.{TreasuryConfiguration}
-use utilities.{equal_plus_min_ada, outputs_of, value_sum}
+use utilities.{
+  equal_plus_min_ada, outputs_of, select_by_address,
+  select_by_payment_credential, value_sum,
+}
 
 // To support conversion to and from stablecoins, or fiat payments,
 // the oversight committee can disburse an arbitrary amount of funds
@@ -21,8 +24,9 @@ pub fn logic(
   let TreasuryConfiguration { expiration, permissions, .. } = config
   let Transaction { inputs, outputs, validity_range, withdrawals, .. } =
     transaction
-  let input_sum = value_sum(outputs_of(inputs), account, True)
-  let output_sum = value_sum(outputs, account, False)
+  let input_sum =
+    value_sum(outputs_of(inputs), select_by_payment_credential(account))
+  let output_sum = value_sum(outputs, select_by_address(account))
   expect and {
       equal_plus_min_ada(merge(input_sum, negate(amount)), output_sum)?,
       // If we're before the expiration, we can pay out lovelace this way

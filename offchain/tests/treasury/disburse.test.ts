@@ -182,7 +182,7 @@ describe("When disbursing", () => {
           );
         });
       });
-      test("cannot attach stake address to change", async () => {
+      test("cannot change stake address type of change", async () => {
         const fullAddress = new Core.Address({
           type: Core.AddressType.BasePaymentScriptStakeKey,
           networkId: Core.NetworkId.Testnet,
@@ -191,8 +191,8 @@ describe("When disbursing", () => {
             hash: treasuryScript.Script.hash(),
           },
           delegationPart: {
-            type: Core.CredentialType.KeyHash,
-            hash: treasuryScript.Script.hash(), // Just use an arbitrary hash
+            type: Core.CredentialType.KeyHash, // Not a script
+            hash: treasuryScript.Script.hash(),
           },
         });
         await emulator.as(Funder, async (blaze, address) => {
@@ -220,7 +220,49 @@ describe("When disbursing", () => {
                 makeValue(499_990_000_000n),
                 Data.Void(),
               ),
-            /Trace expect or {\n {28}allow_stake/,
+            /expect target.stake_credential == Some\(Referenced.Inline\(account\)\)/,
+          );
+        });
+      });
+      test("cannot change stake address hash of change", async () => {
+        const fullAddress = new Core.Address({
+          type: Core.AddressType.BasePaymentScriptStakeScript,
+          networkId: Core.NetworkId.Testnet,
+          paymentPart: {
+            type: Core.CredentialType.ScriptHash,
+            hash: treasuryScript.Script.hash(),
+          },
+          delegationPart: {
+            type: Core.CredentialType.ScriptHash,
+            hash: "0".repeat(56), // Just use an arbitrary hash
+          },
+        });
+        await emulator.as(Funder, async (blaze, address) => {
+          const value = translateValue(makeValue(10_000_000n));
+          await emulator.expectScriptFailure(
+            blaze
+              .newTransaction()
+              .setValidUntil(
+                Slot(Number(configs.treasury.expiration / 1000n) - 1),
+              )
+              .addReferenceInput(registryInput)
+              .addReferenceInput(refInput)
+              .addRequiredSigner(Ed25519KeyHashHex(await fund_key(emulator)))
+              .addInput(
+                scriptInput,
+                Data.serialize(TreasurySpendRedeemer, {
+                  Disburse: {
+                    amount: value,
+                  },
+                }),
+              )
+              .payAssets(address, makeValue(10_000_000n))
+              .lockAssets(
+                fullAddress,
+                makeValue(499_990_000_000n),
+                Data.Void(),
+              ),
+            /expect target.stake_credential == Some\(Referenced.Inline\(account\)\)/,
           );
         });
       });

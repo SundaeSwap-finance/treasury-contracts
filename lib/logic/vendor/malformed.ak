@@ -3,7 +3,10 @@ use aiken/option
 use cardano/address.{Credential}
 use cardano/transaction.{InlineDatum, Transaction}
 use types.{ScriptHashRegistry, VendorDatum}
-use utilities.{equal_plus_min_ada, outputs_of, value_sum}
+use utilities.{
+  equal_plus_min_ada, outputs_of, select_by_address,
+  select_by_payment_credential, value_sum,
+}
 
 // If the datum is malformed, such as someone sending funds to the vendor contract directly for some reason
 // we don't want those to be locked, so we allow them to be swept back to the treasury contract
@@ -48,8 +51,9 @@ pub fn logic(
 
   // Note: we don't need to assert the datums of the outputs,
   // because the treasury contract doesn't use a datum at all!
-  let input_sum = value_sum(inputs, account, True)
-  let output_sum = value_sum(outputs, registry.treasury, False)
+  let input_sum = value_sum(inputs, select_by_payment_credential(account))
+
+  let output_sum = value_sum(outputs, select_by_address(registry.treasury))
 
   expect equal_plus_min_ada(input_sum, output_sum)
 }

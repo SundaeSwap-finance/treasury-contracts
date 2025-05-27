@@ -34,9 +34,10 @@ export function loadTreasuryScript(
   };
   const rewardAccount = Core.RewardAccount.fromCredential(credential, network);
   const scriptAddress = new Core.Address({
-    type: Core.AddressType.EnterpriseScript,
+    type: Core.AddressType.BasePaymentScriptStakeScript,
     networkId: network,
     paymentPart: credential,
+    delegationPart: credential,
   });
   return {
     config,

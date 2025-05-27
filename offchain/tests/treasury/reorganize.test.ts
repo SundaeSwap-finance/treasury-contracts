@@ -231,7 +231,7 @@ describe("When reorganizing", () => {
       });
     });
 
-    test("cannot attach staking address", async () => {
+    test("cannot change staking address type", async () => {
       const fullAddress = new Core.Address({
         type: Core.AddressType.BasePaymentScriptStakeKey,
         networkId: Core.NetworkId.Testnet,
@@ -240,8 +240,8 @@ describe("When reorganizing", () => {
           hash: treasuryScript.Script.hash(),
         },
         delegationPart: {
-          type: Core.CredentialType.KeyHash,
-          hash: treasuryScript.Script.hash(), // Just use an arbitrary hash
+          type: Core.CredentialType.KeyHash, // Not a script
+          hash: treasuryScript.Script.hash(),
         },
       });
       await emulator.as(Reorganizer, async (blaze) => {
@@ -263,7 +263,44 @@ describe("When reorganizing", () => {
               scriptInput.output().amount(),
               Data.Void(),
             ),
-          /Trace expect or {\n {28}allow_stake,/,
+          /expect target.stake_credential == Some\(Referenced.Inline\(account\)\)/,
+        );
+      });
+    });
+
+    test("cannot change staking address hash", async () => {
+      const fullAddress = new Core.Address({
+        type: Core.AddressType.BasePaymentScriptStakeScript,
+        networkId: Core.NetworkId.Testnet,
+        paymentPart: {
+          type: Core.CredentialType.ScriptHash,
+          hash: treasuryScript.Script.hash(),
+        },
+        delegationPart: {
+          type: Core.CredentialType.ScriptHash,
+          hash: "0".repeat(56), // Just use an arbitrary hash
+        },
+      });
+      await emulator.as(Reorganizer, async (blaze) => {
+        await emulator.expectScriptFailure(
+          blaze
+            .newTransaction()
+            .addInput(
+              scriptInput,
+              Data.serialize(TreasurySpendRedeemer, "Reorganize"),
+            )
+            .setValidUntil(unix_to_slot(config.expiration - 1000n))
+            .addReferenceInput(registryInput)
+            .addReferenceInput(refInput)
+            .addRequiredSigner(
+              Ed25519KeyHashHex(await reorganize_key(emulator)),
+            )
+            .lockAssets(
+              fullAddress,
+              scriptInput.output().amount(),
+              Data.Void(),
+            ),
+          /expect target.stake_credential == Some\(Referenced.Inline\(account\)\)/,
         );
       });
     });

@@ -321,21 +321,21 @@ describe("When funding", () => {
                 makeValue(499_990_000_000n),
                 Data.Void(),
               ),
-            /Trace expect or {\n {28}allow_stake/,
+            /expect None = target.stake_credential/,
           );
         });
       });
-      test("cannot attach stake address to change", async () => {
+      test("preserve stake credential in change", async () => {
         const fullAddress = new Core.Address({
-          type: Core.AddressType.BasePaymentScriptStakeKey,
+          type: Core.AddressType.BasePaymentScriptStakeScript,
           networkId: Core.NetworkId.Testnet,
           paymentPart: {
             type: Core.CredentialType.ScriptHash,
             hash: treasuryScript.Script.hash(),
           },
           delegationPart: {
-            type: Core.CredentialType.KeyHash,
-            hash: treasuryScript.Script.hash(), // Just use an arbitrary hash
+            type: Core.CredentialType.ScriptHash,
+            hash: "0".repeat(56), // Just use an arbitrary hash
           },
         });
         await emulator.as(Funder, async (blaze) => {
@@ -377,7 +377,7 @@ describe("When funding", () => {
                 makeValue(499_990_000_000n),
                 Data.Void(),
               ),
-            /Trace expect or {\n {28}allow_stake/,
+            /expect target.stake_credential == Some\(Referenced.Inline\(account\)\)/,
           );
         });
       });

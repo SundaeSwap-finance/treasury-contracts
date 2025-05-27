@@ -6,7 +6,10 @@ use cardano/assets
 use cardano/transaction.{InlineDatum, Transaction}
 use sundae/multisig.{satisfied}
 use types.{Active, ScriptHashRegistry, VendorConfiguration, VendorDatum}
-use utilities.{equal_plus_min_ada, outputs_of, value_sum}
+use utilities.{
+  equal_plus_min_ada, outputs_of, select_by_address,
+  select_by_payment_credential_strict, value_sum,
+}
 
 // The vendor and the oversight committee can agree to modify or cancel a project
 // Specifically, this logic ensures:
@@ -66,13 +69,13 @@ pub fn logic(
           },
         )
 
-  let vendor_outputs =
-    outputs
-      |> list.filter(
-          fn(output) { output.address.payment_credential == account },
-        )
-  let vendor_output_sum = value_sum(vendor_outputs, account, False)
-  let treasury_output_sum = value_sum(outputs, registry.treasury, False)
+  let vendor_output_sum =
+    // TODO: Are vendors really not allowed to have stake credentials? What is
+    // the motivation here?
+    value_sum(outputs, select_by_payment_credential_strict(account))
+
+  let treasury_output_sum =
+    value_sum(outputs, select_by_address(registry.treasury))
 
   let unmatured_value = assets.merge(input.value, assets.negate(matured_value))
   expect and {

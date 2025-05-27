@@ -183,7 +183,7 @@ describe("With a malformed datum", () => {
         );
       });
     });
-    test("cannot attach stake address", async () => {
+    test("cannot change stake address type", async () => {
       await emulator.as("Anyone", async (blaze) => {
         const fullAddress = new Core.Address({
           type: Core.AddressType.BasePaymentScriptStakeKey,
@@ -193,8 +193,8 @@ describe("With a malformed datum", () => {
             hash: treasuryScript.Script.hash(),
           },
           delegationPart: {
-            type: Core.CredentialType.KeyHash,
-            hash: treasuryScript.Script.hash(), // Just use an arbitrary hash
+            type: Core.CredentialType.KeyHash, // Not a script
+            hash: treasuryScript.Script.hash(),
           },
         });
         await emulator.expectScriptFailure(
@@ -207,7 +207,35 @@ describe("With a malformed datum", () => {
               Data.serialize(VendorSpendRedeemer, "Malformed"),
             )
             .lockAssets(fullAddress, makeValue(500_000_000_000n), Data.Void()),
-          /Trace expect or {\n {28}allow_stake,/,
+          /expect target.stake_credential == Some\(Referenced.Inline\(account\)\)/,
+        );
+      });
+    });
+    test("cannot change stake address hash", async () => {
+      await emulator.as("Anyone", async (blaze) => {
+        const fullAddress = new Core.Address({
+          type: Core.AddressType.BasePaymentScriptStakeKey,
+          networkId: Core.NetworkId.Testnet,
+          paymentPart: {
+            type: Core.CredentialType.ScriptHash,
+            hash: treasuryScript.Script.hash(),
+          },
+          delegationPart: {
+            type: Core.CredentialType.ScriptHash,
+            hash: "0".repeat(56), // Just use an arbitrary hash
+          },
+        });
+        await emulator.expectScriptFailure(
+          blaze
+            .newTransaction()
+            .addReferenceInput(registryInput)
+            .addReferenceInput(refInput)
+            .addInput(
+              scriptInput,
+              Data.serialize(VendorSpendRedeemer, "Malformed"),
+            )
+            .lockAssets(fullAddress, makeValue(500_000_000_000n), Data.Void()),
+          /expect target.stake_credential == Some\(Referenced.Inline\(account\)\)/,
         );
       });
     });

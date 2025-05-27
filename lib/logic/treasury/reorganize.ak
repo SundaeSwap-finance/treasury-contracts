@@ -3,7 +3,10 @@ use cardano/address.{Credential}
 use cardano/transaction.{Transaction}
 use sundae/multisig.{satisfied}
 use types.{TreasuryConfiguration}
-use utilities.{equal_plus_min_ada, outputs_of, value_sum}
+use utilities.{
+  equal_plus_min_ada, outputs_of, select_by_address,
+  select_by_payment_credential, value_sum,
+}
 
 // Before the expiration, the oversight committee can reorganize the treasury UTxOs, so long as no value escapes
 pub fn logic(
@@ -23,8 +26,9 @@ pub fn logic(
   // The funds coming in should exactly match the funds going out
   // We allow a staking credential on the inputs, just in case someone attached one
   // but prevent them on the outputs
-  let input_sum = value_sum(outputs_of(inputs), account, True)
-  let output_sum = value_sum(outputs, account, False)
+  let input_sum =
+    value_sum(outputs_of(inputs), select_by_payment_credential(account))
+  let output_sum = value_sum(outputs, select_by_address(account))
 
   // TODO: do we need to check that the redeemer used for all other inputs at `account` is reogranize?
   expect and {

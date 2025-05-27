@@ -25,6 +25,9 @@ pub type TreasuryPermissions {
   // The condition under which the funds can be paid out to an arbitrary destination
   // This may, for example, be stricter than paying to the vendor contract
   disburse: MultisigScript,
+  // The permission to unregister a staking credential, mainly to cleanup the
+  // chain once the treasury is no longer of use.
+  unregister: MultisigScript,
 }
 
 /// Treasury script configuration
@@ -35,8 +38,6 @@ pub type TreasuryConfiguration {
   permissions: TreasuryPermissions,
   // The time after which the funds can be swept back to the treasury
   expiration: Int,
-  // The upper bound for any payouts created by the oversight committee
-  payout_upperbound: Int,
 }
 
 pub type VendorPermissions {
