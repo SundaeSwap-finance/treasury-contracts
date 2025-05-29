@@ -165,7 +165,7 @@ describe('', () => {
               {
                 maturation: 4000n,
                 value: coreValueToContractsValue(makeValue(10_000_000n)),
-                status: 'Paused',
+                status: 'Active',
               },
               {
                 maturation: 10000n,
