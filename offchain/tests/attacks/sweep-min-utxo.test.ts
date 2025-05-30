@@ -48,7 +48,7 @@ describe("", () => {
   let emulator: Emulator;
   let configs: { treasury: TreasuryConfiguration; vendor: VendorConfiguration };
   let now: Date;
-
+  let treasuryInput: Core.TransactionUnspentOutput;
   let fourthScriptInput: Core.TransactionUnspentOutput;
   let fourthDatum: VendorDatum;
 
@@ -100,6 +100,13 @@ describe("", () => {
     treasuryScriptAddress = treasuryScriptManifest.scriptAddress;
 
     emulator.accounts.set(rewardAccount, amount);
+
+    treasuryInput = new Core.TransactionUnspentOutput(
+      new Core.TransactionInput(Core.TransactionId("1".repeat(64)), 0n),
+      new Core.TransactionOutput(treasuryScriptAddress, makeValue(500_000_000_000n)),
+    );
+    treasuryInput.output().setDatum(Core.Datum.newInlineData(Data.Void()));
+    emulator.addUtxo(treasuryInput);
 
     vendor = {
       Signature: {
@@ -170,16 +177,13 @@ describe("", () => {
             await printUtxosAtAddress(treasuryScriptAddress)
             console.log('User utxos')
             await printUtxosAtAddress(addr)
+            // This test now fails. We are using a single lovelace donation to include a treasury input.
+            // The failure is due to the sweep validator forcing us to add minAda to the treasury input, even
+            // though the treasury utxo already covers minAda
             await emulator.expectValidTransaction(
               blaze,
-              await sweep(configs, now, [fourthScriptInput], blaze),
+              await sweep(configs, now, [fourthScriptInput], treasuryInput, blaze),
             );
-            console.log('Vendor utxos')
-            await printUtxosAtAddress(vendorScriptAddress)
-            console.log('Treasury utxos')
-            await printUtxosAtAddress(treasuryScriptAddress)
-            console.log('User utxos')
-            await printUtxosAtAddress(addr)
           });
         });
 
