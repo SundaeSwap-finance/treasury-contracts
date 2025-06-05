@@ -1,4 +1,4 @@
-import { MultisigScript } from "../types/contracts";
+import { MultisigScript } from "../../generated-types/contracts.js";
 
 export type TPermissionName =
   | "reorganize"

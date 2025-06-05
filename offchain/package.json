@@ -54,20 +54,21 @@
     "@sundaeswap/babel-preset": "^2.0.15",
     "@sundaeswap/eslint-config": "^2.0.15",
     "@types/bun": "latest",
+    "@types/commander": "^2.12.5",
+    "commander": "^14.0.0",
     "eslint": "^9.27.0",
     "globals": "^16.2.0",
     "husky": "^9.1.7",
     "lint-staged": "^16.1.0",
-    "standard-version": "^9.5.0",
-    "@types/commander": "^2.12.5",
-    "commander": "^14.0.0"
+    "standard-version": "^9.5.0"
   },
   "dependencies": {
-    "@inquirer/prompts": "^7.5.3",
-    "clipboardy": "^4.0.0",
     "@blaze-cardano/data": "^0.6.0",
     "@blaze-cardano/query": "^0.4.3",
     "@blaze-cardano/sdk": "^0.2.30",
-    "@blaze-cardano/uplc": "^0.3.1"
+    "@blaze-cardano/uplc": "^0.3.1",
+    "@inquirer/prompts": "^7.5.3",
+    "cbor": "^10.0.3",
+    "clipboardy": "^4.0.0"
   }
 }

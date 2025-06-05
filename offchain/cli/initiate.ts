@@ -1,5 +1,6 @@
 import {
   AssetName,
+  CredentialType,
   Datum,
   Ed25519KeyHashHex,
   HexBlob,
@@ -11,6 +12,10 @@ import {
 import { serialize, Void } from "@blaze-cardano/data";
 import { Blaze, Core } from "@blaze-cardano/sdk";
 import { input, select } from "@inquirer/prompts";
+import {
+  type ITransactionMetadata,
+  toTxMetadata,
+} from "../src/metadata/shared";
 import { contractsValueToCoreValue } from "../src/shared";
 import {
   OneshotOneshotMint,
@@ -19,18 +24,16 @@ import {
   VendorVendorSpend,
 } from "../src/types/contracts";
 import {
+  addressOrHexToHash,
+  getPermissions,
   getProvider,
   getTreasuryConfig,
   getVendorConfig,
   getWallet,
-  transactionDialog,
   isAddressOrHex,
   maybeInput,
-  getPermissions,
-  addressOrHexToHash,
+  transactionDialog,
 } from "./shared";
-import { type ITransactionMetadata, toMetadata } from "../src/metadata/shared";
-import { CredentialType } from "@blaze-cardano/core";
 
 export async function initiate(): Promise<void> {
   const utxo = await input({
@@ -155,7 +158,7 @@ export async function initiate(): Promise<void> {
           new Map<AssetName, bigint>([[AssetName(assetName), BigInt(1)]]),
           Void(),
         )
-        .setMetadata(toMetadata(metadata))
+        .setMetadata(toTxMetadata(metadata))
         .provideScript(oneshotScript.Script)
         .addRequiredSigner(Ed25519KeyHashHex(HexBlob(metadata.body.txAuthor)))
         .complete();

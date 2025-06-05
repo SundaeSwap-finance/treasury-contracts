@@ -1,10 +1,4 @@
-import type {
-  TreasuryConfiguration,
-  VendorConfiguration,
-} from "../src/types/contracts";
-import { input, select } from "@inquirer/prompts";
 import { Address, CredentialType } from "@blaze-cardano/core";
-import clipboard from "clipboardy";
 import {
   Blockfrost,
   ColdWallet,
@@ -13,11 +7,17 @@ import {
   Wallet,
   type Provider,
 } from "@blaze-cardano/sdk";
+import { input, select } from "@inquirer/prompts";
+import clipboard from "clipboardy";
 import {
   toMultisig,
   type TPermissionMetadata,
   type TPermissionName,
-} from "../src/metadata/permission";
+} from "../src/metadata/types/permission";
+import type {
+  TreasuryConfiguration,
+  VendorConfiguration,
+} from "../src/types/contracts";
 
 export async function maybeInput(opts: {
   message: string;

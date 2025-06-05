@@ -1,4 +1,4 @@
-import type { TPermissionMetadata, TPermissionName } from "./permission";
+import type { TPermissionMetadata, TPermissionName } from "./permission.js";
 
 export interface INewInstance {
   event: "publish";
