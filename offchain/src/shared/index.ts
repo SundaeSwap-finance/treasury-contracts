@@ -2,18 +2,20 @@ import { Core, makeValue } from "@blaze-cardano/sdk";
 import { type Cardano } from "@cardano-sdk/core";
 
 import {
+  Address,
+  RewardAccount,
+  Slot,
+  SLOT_CONFIG_NETWORK,
+  SlotConfig,
+  Value,
+  type CredentialCore,
+} from "@blaze-cardano/core";
+import {
   TreasuryConfiguration,
   TreasuryTreasuryWithdraw,
   VendorConfiguration,
   VendorVendorSpend,
 } from "../types/contracts";
-import {
-  Address,
-  RewardAccount,
-  Slot,
-  Value,
-  type CredentialCore,
-} from "@blaze-cardano/core";
 
 export interface ICompiledScript<T, C> {
   config: C;
@@ -92,12 +94,32 @@ export function loadScripts(
   };
 }
 
-export function unix_to_slot(unix: bigint): Slot {
-  return Slot(Number(unix / 1000n));
+function getSlotConfig(network: Core.NetworkId): SlotConfig {
+  switch (network) {
+    case Core.NetworkId.Mainnet:
+      return SLOT_CONFIG_NETWORK.Mainnet;
+    case Core.NetworkId.Testnet:
+      return SLOT_CONFIG_NETWORK.Preview;
+    default:
+      throw new Error("Network not supported for slot conversion");
+  }
 }
 
-export function slot_to_unix(slot: Slot): bigint {
-  return BigInt(slot) * 1000n;
+export function unix_to_slot(network: Core.NetworkId, unix: number): Slot {
+  const slotConfig = getSlotConfig(network);
+
+  return Slot(
+    (unix - slotConfig.zeroTime) / slotConfig.slotLength + slotConfig.zeroSlot,
+  );
+}
+
+export function slot_to_unix(network: Core.NetworkId, slot: Slot): number {
+  const slotConfig = getSlotConfig(network);
+
+  return (
+    slotConfig.zeroTime +
+    (slot.valueOf() - slotConfig.zeroSlot) * slotConfig.slotLength
+  );
 }
 
 export function coreValueToContractsValue(amount: Value): {

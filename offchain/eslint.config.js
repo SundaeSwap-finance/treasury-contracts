@@ -8,6 +8,7 @@ export default [
     rules: {
       "no-console": "off",
       "@typescript-eslint/no-non-null-asserted-optional-chain": "warn",
+      "@typescript-eslint/no-explicit-any": "off",
       "no-use-before-define": "off",
     },
     languageOptions: {

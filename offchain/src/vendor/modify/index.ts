@@ -45,13 +45,15 @@ export async function modify<P extends Provider, W extends Wallet>(
   const refInput = await blaze.provider.resolveScriptRef(vendorScript.Script);
   if (!refInput)
     throw new Error("Could not find vendor script reference on-chain");
-  const thirty_six_hours = 36n * 60n * 60n * 1000n;
+  const thirty_six_hours = 36 * 60 * 60 * 1000; // 36 hours in milliseconds
   let tx = blaze
     .newTransaction()
     .addReferenceInput(registryInput)
     .addReferenceInput(refInput)
-    .setValidFrom(unix_to_slot(BigInt(now.valueOf())))
-    .setValidUntil(unix_to_slot(BigInt(now.valueOf()) + thirty_six_hours))
+    .setValidFrom(unix_to_slot(blaze.provider.network, now.valueOf()))
+    .setValidUntil(
+      unix_to_slot(blaze.provider.network, now.valueOf() + thirty_six_hours),
+    )
     .addInput(input, Data.serialize(VendorSpendRedeemer, "Modify"));
   for (const signer of signers) {
     tx = tx.addRequiredSigner(signer);
@@ -101,13 +103,15 @@ export async function cancel<P extends Provider, W extends Wallet>(
   const refInput = await blaze.provider.resolveScriptRef(vendorScript.Script);
   if (!refInput)
     throw new Error("Could not find vendor script reference on-chain");
-  const thirty_six_hours = 36n * 60n * 60n * 1000n;
+  const thirty_six_hours = 36 * 60 * 60 * 1000; // 36 hours in milliseconds
   let tx = blaze
     .newTransaction()
     .addReferenceInput(registryInput)
     .addReferenceInput(refInput)
-    .setValidFrom(unix_to_slot(BigInt(now.valueOf())))
-    .setValidUntil(unix_to_slot(BigInt(now.valueOf()) + thirty_six_hours))
+    .setValidFrom(unix_to_slot(blaze.provider.network, now.valueOf()))
+    .setValidUntil(
+      unix_to_slot(blaze.provider.network, now.valueOf() + thirty_six_hours),
+    )
     .addInput(input, Data.serialize(VendorSpendRedeemer, "Modify"));
   for (const signer of signers) {
     tx = tx.addRequiredSigner(signer);

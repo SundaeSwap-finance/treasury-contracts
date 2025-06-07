@@ -1,11 +1,13 @@
-import type {
-  TreasuryConfiguration,
-  VendorConfiguration,
-} from "../src/types/contracts";
-import { input, select } from "@inquirer/prompts";
-import { Address, CredentialType } from "@blaze-cardano/core";
-import clipboard from "clipboardy";
 import {
+  Address,
+  CredentialType,
+  Ed25519KeyHashHex,
+  Script,
+  Transaction,
+  TransactionUnspentOutput,
+} from "@blaze-cardano/core";
+import {
+  Blaze,
   Blockfrost,
   ColdWallet,
   Core,
@@ -13,11 +15,87 @@ import {
   Wallet,
   type Provider,
 } from "@blaze-cardano/sdk";
+import { checkbox, input, select } from "@inquirer/prompts";
+import clipboard from "clipboardy";
+import type { IOutput } from "../src/metadata/initialize-reorganize";
+import type { INewInstance } from "../src/metadata/new-instance";
 import {
   toMultisig,
   type TPermissionMetadata,
   type TPermissionName,
 } from "../src/metadata/permission";
+import type { IAnchor, ITransactionMetadata } from "../src/metadata/shared";
+import {
+  OneshotOneshotMint,
+  TreasuryConfiguration,
+  TreasuryTreasurySpend,
+  VendorConfiguration,
+  VendorVendorSpend,
+} from "../src/types/contracts";
+
+async function getSignersFromList(
+  permissions: TPermissionMetadata[],
+  min: number,
+): Promise<Ed25519KeyHashHex[]> {
+  const choices = await Promise.all(
+    permissions.map(async (script) => ({
+      name: script.label || JSON.stringify(script),
+      value: await getSigners(script),
+    })),
+  );
+  const selections = await checkbox({
+    message: "Select the keys that will be signing the transaction",
+    choices,
+    validate: (selected) => {
+      if (selected.length >= min) {
+        return "You must select at least one key";
+      }
+      return true;
+    },
+  });
+  return selections.flat();
+}
+
+export async function getSigners(
+  permissions: TPermissionMetadata,
+): Promise<Ed25519KeyHashHex[]> {
+  const signers: Ed25519KeyHashHex[] = [];
+
+  if ("signature" in permissions) {
+    signers.push(Ed25519KeyHashHex(permissions.signature.key_hash));
+  }
+
+  if ("atLeast" in permissions) {
+    return await getSignersFromList(
+      permissions.atLeast.scripts,
+      Number(permissions.atLeast.required),
+    );
+  }
+
+  if ("anyOf" in permissions) {
+    return await getSignersFromList(permissions.anyOf.scripts, 1);
+  }
+
+  if ("allOf" in permissions) {
+    const allSigners = await Promise.all(
+      permissions.allOf.scripts.map(async (script) => await getSigners(script)),
+    );
+    return allSigners.flat();
+  }
+
+  return signers;
+}
+
+export async function inputOrEnv(opts: {
+  message: string;
+  env: string;
+  validate?: (a: string) => boolean | string | Promise<boolean | string>;
+}): Promise<string> {
+  if (process.env[opts.env] !== undefined) {
+    return process.env[opts.env]!;
+  }
+  return await input(opts);
+}
 
 export async function maybeInput(opts: {
   message: string;
@@ -28,6 +106,50 @@ export async function maybeInput(opts: {
     return undefined;
   }
   return resp;
+}
+
+export async function getOptional<T, O>(
+  message: string,
+  opts: O,
+  call: (o: O) => Promise<T>,
+): Promise<T | undefined> {
+  const option = await select({
+    message: message,
+    choices: [
+      { name: "Yes", value: true },
+      { name: "No", value: false },
+    ],
+  });
+  if (option) {
+    return await call(opts);
+  } else {
+    return undefined;
+  }
+}
+
+export async function getAnchor(): Promise<IAnchor> {
+  return {
+    anchorUrl: await input({
+      message: "Enter the URL of the anchor (e.g., https://example.com/anchor)",
+      validate: (url) => {
+        try {
+          new URL(url);
+          return true;
+        } catch {
+          return "Invalid URL format";
+        }
+      },
+    }),
+    anchorDataHash: await input({
+      message: "Enter the hash of the anchor data (hex format)",
+      validate: (hash) => {
+        if (/^[0-9a-fA-F]{64}$/.test(hash)) {
+          return true;
+        }
+        return "Hash must be a 64-character hexadecimal string";
+      },
+    }),
+  } as IAnchor;
 }
 
 export async function getDate(title: string, min?: Date): Promise<Date> {
@@ -409,20 +531,25 @@ export async function getProvider(): Promise<Provider> {
   });
   switch (providerType) {
     case "blockfrost":
-      const bfNetwork: "cardano-mainnet" | "cardano-preview" = await select({
-        message: "Select the network",
-        choices: [
-          { name: "Mainnet", value: "cardano-mainnet" },
-          { name: "Preview", value: "cardano-preview" },
-        ],
+      const bfKey = await inputOrEnv({
+        message: "Enter the Blockfrost project ID",
+        env: "BLOCKFROST_KEY",
+        validate: (s) => s.startsWith("preview") || s.startsWith("mainnet"),
       });
+      const bfNetwork: "cardano-mainnet" | "cardano-preview" = bfKey.startsWith(
+        "preview",
+      )
+        ? "cardano-preview"
+        : "cardano-mainnet";
       return new Blockfrost({
         network: bfNetwork,
-        projectId: await input({
-          message: "Enter the Blockfrost project ID",
-        }),
+        projectId: bfKey,
       });
     case "maestro":
+      const mKey = await inputOrEnv({
+        message: "Enter the Maestro API key",
+        env: "MAESTRO_KEY",
+      });
       const mNetwork: "mainnet" | "preview" = await select({
         message: "Select the network",
         choices: [
@@ -432,9 +559,7 @@ export async function getProvider(): Promise<Provider> {
       });
       return new Maestro({
         network: mNetwork,
-        apiKey: await input({
-          message: "Enter the Maestro API key",
-        }),
+        apiKey: mKey,
       });
     default:
       throw new Error("Invalid provider type");
@@ -539,4 +664,350 @@ export async function getVendorConfig(
     },
     expiration: BigInt(vendorExpiration.valueOf()),
   };
+}
+
+export async function deployTransaction<P extends Provider, W extends Wallet>(
+  blazeInstance: Blaze<P, W>,
+  scripts: Script[],
+  register: boolean = false,
+): Promise<Transaction> {
+  const txBuilder = blazeInstance.newTransaction();
+  scripts.forEach((script) => {
+    txBuilder.deployScript(script);
+  });
+  if (register) {
+    scripts.forEach((script) => {
+      txBuilder.addRegisterStake(
+        Core.Credential.fromCore({
+          type: Core.CredentialType.ScriptHash,
+          hash: script.hash(),
+        }),
+      );
+    });
+  }
+  return txBuilder.complete();
+}
+
+export async function getBlazeInstance(): Promise<Blaze<Provider, Wallet>> {
+  const provider = await getProvider();
+  const wallet = await getWallet(provider);
+  return await Blaze.from(provider, wallet);
+}
+
+export async function configToMetaData(
+  treasuryConfig: TreasuryConfiguration,
+  vendorConfig: VendorConfiguration,
+  permissions: Record<TPermissionName, TPermissionMetadata | TPermissionName>,
+  seed_utxo: {
+    transaction_id: string;
+    output_index: bigint;
+  },
+): Promise<INewInstance> {
+  return {
+    event: "publish",
+    expiration: treasuryConfig.expiration,
+    payoutUpperbound: treasuryConfig.payout_upperbound,
+    vendorExpiration: vendorConfig.expiration,
+    identifier: treasuryConfig.registry_token,
+    label: await maybeInput({
+      message: "Human readable label for this instance?",
+    }),
+    description: await maybeInput({
+      message: "Longer human readable description for this treasury instance?",
+    }),
+    permissions,
+    seed_utxo,
+  };
+}
+
+export function metaDataToConfig(metadata: INewInstance): {
+  treasuryConfig: TreasuryConfiguration;
+  vendorConfig: VendorConfiguration;
+} {
+  const treasuryConfig: TreasuryConfiguration = {
+    registry_token: metadata.identifier,
+    permissions: {
+      disburse: toMultisig(metadata.permissions.disburse, metadata.permissions),
+      fund: toMultisig(metadata.permissions.fund, metadata.permissions),
+      reorganize: toMultisig(
+        metadata.permissions.reorganize,
+        metadata.permissions,
+      ),
+      sweep: toMultisig(metadata.permissions.sweep, metadata.permissions),
+    },
+    expiration: BigInt(metadata.expiration),
+    payout_upperbound: BigInt(metadata.payoutUpperbound),
+  };
+  const vendorConfig: VendorConfiguration = {
+    registry_token: metadata.identifier,
+    permissions: {
+      modify: toMultisig(metadata.permissions.modify, metadata.permissions),
+      pause: toMultisig(metadata.permissions.pause, metadata.permissions),
+      resume: toMultisig(metadata.permissions.resume, metadata.permissions),
+    },
+    expiration: BigInt(metadata.vendorExpiration),
+  };
+  return { treasuryConfig, vendorConfig };
+}
+
+const fileName = "metadata.json";
+
+export async function readMetadataFromFile(): Promise<
+  Map<string, INewInstance>
+> {
+  const fs = await import("fs/promises");
+  const path = await import("path");
+  const data = await fs.readFile(path.resolve(fileName), {
+    encoding: "utf-8",
+    flag: "a+",
+  });
+
+  if (data.trim() === "") {
+    console.log("No metadata found, creating a new file.");
+    return new Map<string, INewInstance>();
+  }
+  const obj = JSON.parse(data);
+  const metadata = new Map<string, INewInstance>();
+  for (const k of Object.keys(obj)) {
+    metadata.set(k, obj[k]);
+  }
+  return metadata;
+}
+
+export function bigIntReplacer(_key: string, value: any): any {
+  return typeof value === "bigint" ? value.toString() : value;
+}
+
+export async function writeMetadataToFile(
+  metadata: Map<string, INewInstance>,
+): Promise<void> {
+  const fs = await import("fs/promises");
+  const path = await import("path");
+  const obj = Object.create(null);
+  for (const [k, v] of metadata) {
+    obj[k] = v;
+  }
+  await fs.writeFile(
+    path.resolve(fileName),
+    JSON.stringify(obj, bigIntReplacer, 2),
+  );
+}
+
+export async function registerMetadata(metadata: INewInstance): Promise<void> {
+  const existingMetadata = await readMetadataFromFile();
+  existingMetadata.set(metadata.identifier, metadata);
+  await writeMetadataToFile(existingMetadata);
+}
+
+export async function getConfigs(): Promise<{
+  treasuryConfig: TreasuryConfiguration;
+  vendorConfig: VendorConfiguration;
+  metadata: INewInstance;
+}> {
+  const choice = await select({
+    message: "Select saved configuration or register a new one",
+    choices: [
+      { name: "Register a new instance", value: "register" },
+      { name: "Select from existing instances", value: "select" },
+    ],
+  });
+
+  switch (choice) {
+    case "register": {
+      return await registerNewInstance();
+    }
+    case "select": {
+      const metadataMap = await readMetadataFromFile();
+
+      const metadataChoices = Array.from(metadataMap.entries()).map(
+        ([key, value]) => ({
+          name: value.label || key,
+          value: key,
+        }),
+      );
+      if (metadataChoices.length === 0) {
+        console.log(
+          "No saved configurations found. Please register a new instance.",
+        );
+        return await registerNewInstance();
+      }
+      const selectedKey = await select({
+        message: "Select a saved configuration",
+        choices: metadataChoices,
+      });
+      const metadata = metadataMap.get(selectedKey);
+      if (!metadata) {
+        throw new Error(`Metadata for ${selectedKey} not found`);
+      }
+      const { treasuryConfig, vendorConfig } = metaDataToConfig(metadata);
+      return { treasuryConfig, vendorConfig, metadata };
+    }
+    default:
+      throw new Error("Unreachable");
+  }
+}
+
+async function registerNewInstance(): Promise<{
+  treasuryConfig: TreasuryConfiguration;
+  vendorConfig: VendorConfiguration;
+  metadata: INewInstance;
+}> {
+  const utxo = await input({
+    message:
+      "Enter some transaction output (txId#idx) to spend to ensure the registry NFT is unique ",
+    validate: function (value) {
+      return (
+        /[0-9A-Fa-f]{64}#[0-9]+/.test(value) ||
+        "Should be in the format txId#idx"
+      );
+    },
+  });
+  const bootstrapUtxo = {
+    transaction_id: utxo.split("#")[0],
+    output_index: BigInt(utxo.split("#")[1]),
+  };
+  const oneshotScript = new OneshotOneshotMint(bootstrapUtxo);
+
+  const registry_token = oneshotScript.Script;
+  console.log(`Registry token policy ID: ${registry_token.hash()}`);
+
+  console.log(`Now lets configure the permissions`);
+  const permissions = await getPermissions();
+
+  const treasuryConfig = await getTreasuryConfig(
+    registry_token.hash(),
+    permissions,
+  );
+
+  const treasuryScript = new TreasuryTreasurySpend(treasuryConfig).Script;
+  console.log(`Treasury script policy ID: ${treasuryScript.hash()}`);
+
+  const vendorConfig = await getVendorConfig(
+    registry_token.hash(),
+    new Date(Number(treasuryConfig.payout_upperbound)),
+    permissions,
+  );
+
+  const vendorScript = new VendorVendorSpend(vendorConfig).Script;
+  console.log(`Vendor script policy ID: ${vendorScript.hash()}`);
+  const metadataRaw = await configToMetaData(
+    treasuryConfig,
+    vendorConfig,
+    permissions,
+    bootstrapUtxo,
+  );
+  const metadata: INewInstance = {
+    ...metadataRaw,
+    seed_utxo: bootstrapUtxo,
+  };
+  await registerMetadata(metadata);
+  return {
+    treasuryConfig,
+    vendorConfig,
+    metadata,
+  };
+}
+
+export async function getOutputs(): Promise<{
+  amounts: bigint[];
+  outputs: Record<number, IOutput>;
+}> {
+  const outputs: Record<number, IOutput> = {};
+  const amounts: bigint[] = [];
+  let outputIndex = 0;
+  while (true) {
+    const amount = await input({
+      message: `Enter the amount (in lovelace) for output ${outputIndex} (or leave empty to finish):`,
+      validate: (value) => {
+        if (value === "") return true;
+        const num = parseInt(value, 10);
+        return num > 0 ? true : `Must be a positive number`;
+      },
+    });
+    if (amount === "") break;
+
+    amounts[outputIndex] = BigInt(amount);
+
+    const output = {
+      identifier: await input({
+        message: `Enter a unique identifier for output ${outputIndex}:`,
+        validate: (value) => {
+          return value.trim() !== "" ? true : "Identifier cannot be empty";
+        },
+      }),
+      label: await maybeInput({
+        message: `Enter a human readable label for output ${outputIndex} (optional):`,
+      }),
+    } as IOutput;
+
+    outputs[outputIndex] = output;
+    outputIndex++;
+  }
+  return { amounts, outputs };
+}
+
+export async function getTransactionMetadata<MetadataBody>(
+  body: MetadataBody,
+): Promise<ITransactionMetadata<MetadataBody>> {
+  return {
+    "@context": "",
+    hashAlgorithm: "blake2b-256",
+    body: body,
+    txAuthor: await input({
+      message:
+        "Enter a hexidecimal pubkey hash, or a bech32 encoded address for the author of this transaction",
+      validate: (s) => isAddressOrHex(s, CredentialType.KeyHash),
+    }).then((s) => addressOrHexToHash(s, CredentialType.KeyHash)),
+    comment: await maybeInput({
+      message: "An arbitrary comment you'd like to attach?",
+    }),
+  };
+}
+
+export async function selectUtxo(
+  utxos: TransactionUnspentOutput[],
+): Promise<TransactionUnspentOutput> {
+  if (utxos.length === 0) {
+    throw new Error("No UTxOs available to select from");
+  }
+  const choices = utxos.map((utxo, index) => ({
+    name: `${utxo.input().transactionId().toString()}#${utxo.input().index().toString()}: ${utxo.output().amount().coin().toString()}`,
+    value: index,
+  }));
+  const selectedIndex = await select({
+    message: "Select a UTxO to use",
+    choices,
+  });
+  return utxos[selectedIndex];
+}
+
+export async function selectUtxos(
+  utxos: TransactionUnspentOutput[],
+): Promise<TransactionUnspentOutput[]> {
+  if (utxos.length === 0) {
+    throw new Error("No UTxOs available to select from");
+  }
+  const choices = utxos.map((utxo, index) => ({
+    name: `${utxo.input().transactionId().toString()}#${utxo.input().index().toString()}: ${utxo.output().amount().coin().toString()}`,
+    value: index,
+  }));
+  const selectedIndices = await checkbox({
+    message: "Select UTxO(s) to use",
+    choices,
+  });
+  return selectedIndices.map((index) => utxos[index]);
+}
+
+export function getActualPermission(
+  permission: TPermissionMetadata | TPermissionName,
+  permissions: Record<TPermissionName, TPermissionMetadata | TPermissionName>,
+): TPermissionMetadata {
+  if (typeof permission === "string") {
+    const actual = permissions[permission];
+    if (typeof actual === "string") {
+      throw new Error(`No metadata found for permission ${permission}`);
+    }
+    return actual;
+  }
+  return permission;
 }

@@ -38,13 +38,15 @@ export async function sweep<P extends Provider, W extends Wallet>(
   const refInput = await blaze.provider.resolveScriptRef(vendorScript.Script);
   if (!refInput)
     throw new Error("Could not find vendor script reference on-chain");
-  const thirtSixHours = 36n * 60n * 60n * 1000n;
+  const thirtSixHours = 36 * 60 * 60 * 1000; // 36 hours in milliseconds
   let tx = blaze
     .newTransaction()
     .addReferenceInput(registryInput)
     .addReferenceInput(refInput)
-    .setValidFrom(unix_to_slot(BigInt(now.valueOf())))
-    .setValidUntil(unix_to_slot(BigInt(now.valueOf()) + thirtSixHours));
+    .setValidFrom(unix_to_slot(blaze.provider.network, now.valueOf()))
+    .setValidUntil(
+      unix_to_slot(blaze.provider.network, now.valueOf() + thirtSixHours),
+    );
 
   let value = Value.zero();
   for (const input of inputs) {

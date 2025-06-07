@@ -110,3 +110,44 @@ export function toMultisig(
     throw new Error("Unsupported type");
   }
 }
+
+export function toPermission(multisig: MultisigScript): TPermissionMetadata {
+  if ("Signature" in multisig) {
+    return {
+      signature: { key_hash: multisig.Signature.key_hash },
+    };
+  } else if ("Script" in multisig) {
+    return {
+      script: { script_hash: multisig.Script.script_hash },
+    };
+  } else if ("AtLeast" in multisig) {
+    return {
+      atLeast: {
+        required: multisig.AtLeast.required,
+        scripts: multisig.AtLeast.scripts.map(toPermission),
+      },
+    };
+  } else if ("AllOf" in multisig) {
+    return {
+      allOf: {
+        scripts: multisig.AllOf.scripts.map(toPermission),
+      },
+    };
+  } else if ("AnyOf" in multisig) {
+    return {
+      anyOf: {
+        scripts: multisig.AnyOf.scripts.map(toPermission),
+      },
+    };
+  } else if ("Before" in multisig) {
+    return {
+      before: { time: multisig.Before.time },
+    };
+  } else if ("After" in multisig) {
+    return {
+      after: { time: multisig.After.time },
+    };
+  } else {
+    throw new Error("Unsupported type");
+  }
+}

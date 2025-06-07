@@ -9,3 +9,5 @@ docs/
 .VSCodeCounter/
 
 *.swp
+
+metadata.json
