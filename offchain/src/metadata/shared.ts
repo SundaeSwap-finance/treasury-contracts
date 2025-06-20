@@ -35,7 +35,7 @@ export interface ITransactionMetadata<B = TMetadataBody> {
   hashAlgorithm: "blake2b-256";
   body: B;
   comment?: string;
-  txAuthor: string;
+  txAuthor?: string;
   instance: string;
 }
 
@@ -118,7 +118,9 @@ export function toTxMetadata(m: ITransactionMetadata): Metadata {
     Metadatum.newText("hashAlgorithm"),
     Metadatum.newText(m.hashAlgorithm),
   );
-  root.insert(Metadatum.newText("txAuthor"), Metadatum.newText(m.txAuthor));
+  if ("txAuthor" in m && m.txAuthor) {
+    root.insert(Metadatum.newText("txAuthor"), Metadatum.newText(m.txAuthor));
+  }
   root.insert(Metadatum.newText("instance"), Metadatum.newText(m.instance));
   if ("comment" in m && m.comment) {
     const comment = toMetadatum(m.comment);

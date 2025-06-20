@@ -7,8 +7,8 @@ export interface INewInstance extends IMetadataBodyBase {
   label?: string;
   description?: string;
   expiration: bigint;
-  payoutUpperbound: bigint;
-  vendorExpiration: bigint;
+  payoutUpperbound?: bigint;
+  vendorExpiration?: bigint;
   permissions: Record<
     TPermissionName,
     TPermissionMetadata | TPermissionName | null
