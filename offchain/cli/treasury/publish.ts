@@ -116,7 +116,7 @@ export async function publish(): Promise<void> {
 
         const auxData = new AuxiliaryData();
         auxData.setMetadata(toTxMetadata(metadata!));
-        const tx = await blazeInstance
+        let tx = await blazeInstance
           .newTransaction()
           .addInput(bootstrapUtxoObj[0])
           .addOutput(oneshotOutput)
@@ -126,9 +126,14 @@ export async function publish(): Promise<void> {
             Void(),
           )
           .setAuxiliaryData(auxData)
-          .provideScript(oneshotScript.Script)
-          .addRequiredSigner(Ed25519KeyHashHex(metadata!.txAuthor))
-          .complete();
+          .provideScript(oneshotScript.Script);
+
+        if (metadata.txAuthor) {
+          tx = await tx.addRequiredSigner(Ed25519KeyHashHex(metadata!.txAuthor));
+        }
+
+        tx = await tx.complete();
+
         await transactionDialog(
           blazeInstance.provider.network,
           tx.toCbor().toString(),
