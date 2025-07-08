@@ -3,7 +3,6 @@ import * as Data from "@blaze-cardano/data";
 import { Blaze, Provider, Wallet } from "@blaze-cardano/sdk";
 import { input } from "@inquirer/prompts";
 import {
-  getAnchor,
   getBlazeInstance,
   getConfigs,
   getSigners,
@@ -14,26 +13,7 @@ import {
 import { Vendor } from "src";
 import { VendorDatum } from "src/generated-types/contracts";
 import { toPermission } from "src/metadata/types/permission";
-import {
-  IAnchorWithLabel,
-  IMilestone,
-  IWithdraw,
-} from "src/metadata/types/withdraw";
-
-async function getEvidence(): Promise<IAnchorWithLabel[]> {
-  const evidence: IAnchorWithLabel[] = [];
-  while (true) {
-    const label = await input({
-      message: "Enter the label for the evidence (or leave empty to finish):",
-    });
-    if (!label) {
-      break;
-    }
-    const anchor = await getAnchor();
-    evidence.push({ label, ...anchor });
-  }
-  return evidence;
-}
+import { IMilestone, IWithdraw } from "src/metadata/types/withdraw";
 
 async function getFinishedMilestones(
   vendorInputs: TransactionUnspentOutput[],
@@ -66,10 +46,9 @@ async function getFinishedMilestones(
       break;
     }
     const milestone = {
-      description: await input({
+      comment: await input({
         message: `Enter the description for milestone ${identifier}:`,
       }),
-      evidence: await getEvidence(),
     } as IMilestone;
     milestones[identifier] = milestone;
   }
