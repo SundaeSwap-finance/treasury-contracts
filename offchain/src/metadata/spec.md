@@ -248,7 +248,7 @@ Funds may be withdrawn from the vendor contract. In such cases, the metadata wil
     "event": "withdraw"
     "milestones": {
       "001": {
-        "description": "long-form markdown annotated description"
+        "comment": "long-form markdown annotated comment (can be blank)"
       }
     }
   }
