@@ -27,14 +27,17 @@
             "signature": {
               "@id": "tom:signaturePermission",
               "@context": {
-             	"keyHash": "tom:keyHashSignaturePermission"
+                "keyHash": "tom:keyHashSignaturePermission"
               }
             },
-            "scripts": { "@id": "tom:scripts", "@container": "@list" },
+            "scripts": {
+              "@id": "tom:scripts",
+              "@container": "@list"
+            },
             "atLeast": {
               "@id": "tom:atLeastPermission",
               "@context": {
-  	        "required": "tom:requiredAtLeastPermission"
+                "required": "tom:requiredAtLeastPermission"
               }
             },
             "allOf": "tom:allOfPermission",
@@ -62,10 +65,7 @@
           "@container": "@index",
           "@context": {
             "acceptanceCriteria": "tom:acceptanceCriteria",
-            "evidence": {
-              "@id": "tom:evidence",
-              "@container": "@list"
-            },
+            "comment": "tom:comment",
             "reason": "tom:pauseReason",
             "resolution": "tom:pauseResolution"
           }
