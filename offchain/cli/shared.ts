@@ -908,7 +908,7 @@ export function metaDataToConfig(
       ),
     },
     expiration: BigInt(metadata.body.expiration),
-    payout_upperbound: BigInt(metadata.body.payoutUpperbound),
+    payout_upperbound: BigInt(metadata.body.payoutUpperbound ?? 0),
   };
   const vendorConfig: VendorConfiguration = {
     registry_token: metadata.instance,
@@ -926,7 +926,7 @@ export function metaDataToConfig(
         metadata.body.permissions,
       ),
     },
-    expiration: BigInt(metadata.body.vendorExpiration),
+    expiration: BigInt(metadata.body.vendorExpiration ?? 0),
   };
   return { treasuryConfig, vendorConfig };
 }
@@ -1273,7 +1273,7 @@ export async function getTransactionMetadata<MetadataBody>(
     hashAlgorithm: "blake2b-256",
     body: body,
     instance,
-    txAuthor: await input({
+    txAuthor: await maybeInput({
       message:
         "Enter a hexidecimal pubkey hash, or a bech32 encoded address for the author of this transaction",
       validate: (s) => isAddressOrHex(s, CredentialType.KeyHash),
