@@ -1006,13 +1006,15 @@ export async function metadataToScripts(
   return {
     treasuryScript: {
       config: scripts.treasuryScript.config,
-      script: scripts.treasuryScript.script.Script.asPlutusV3()!.toCbor(),
+      // toCbor will double-wrap, changing the script hash!
+      script: scripts.treasuryScript.script.Script.asPlutusV3()!.rawBytes(),
       network: blaze.provider.network,
       scriptRef: scripts.treasuryScript.scriptRef,
     },
     vendorScript: {
       config: scripts.vendorScript.config,
-      script: scripts.vendorScript.script.Script.asPlutusV3()!.toCbor(),
+      // toCbor will double-wrap, changing the script hash!
+      script: scripts.vendorScript.script.Script.asPlutusV3()!.rawBytes(),
       network: blaze.provider.network,
       scriptRef: scripts.vendorScript.scriptRef,
     },
