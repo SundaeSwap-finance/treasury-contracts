@@ -20,6 +20,13 @@
         "expiration": "tom:expiration",
         "payoutUpperbound": "tom:payoutUpperbound",
         "vendorExpiration": "tom:vendorExpiration",
+        "seedUtxo": {
+          "@id": "tom:seedUtxo",
+          "@context": {
+            "transactionId": "tom:transactionId",
+            "outputIndex": "tom:outputIndex"
+          }
+        },
         "permissions": {
           "@id": "tom:permissions",
           "@container": "@index",

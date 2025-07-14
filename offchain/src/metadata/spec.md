@@ -54,6 +54,10 @@ When publishing the scriptRegistry datum, which includes the script hashes of th
     "expiration": 1234,
     "payoutUpperbound": 5678,
     "vendorExpiration": 9012,
+    "seedUtxo": {
+      "transactionId": "31c2df71553c3c395fe3ae1ab0eb6e57aac28a0f5436ed413c3c8d2139c03a6d",
+      "outputIndex": "0",
+    },
     "permissions": {
       "reorganize": {
         "label": "Open Source Committee",
