@@ -12,14 +12,14 @@ export type TPermissionName =
 export interface ISignaturePermissionMetadata {
   label?: string;
   signature: {
-    key_hash: string;
+    keyHash: string;
   };
 }
 
 export interface IScriptPermissionMetadata {
   label?: string;
   script: {
-    script_hash: string;
+    scriptHash: string;
   };
 }
 
@@ -83,9 +83,9 @@ export function toMultisig(
     }
     return toMultisig(others[metadata.toString() as TPermissionName]);
   } else if ("signature" in metadata) {
-    return { Signature: { key_hash: metadata.signature.key_hash } };
+    return { Signature: { key_hash: metadata.signature.keyHash } };
   } else if ("script" in metadata) {
-    return { Script: { script_hash: metadata.script.script_hash } };
+    return { Script: { script_hash: metadata.script.scriptHash } };
   } else if ("atLeast" in metadata) {
     return {
       AtLeast: {
@@ -121,11 +121,11 @@ export function toMultisig(
 export function toPermission(multisig: MultisigScript): TPermissionMetadata {
   if ("Signature" in multisig) {
     return {
-      signature: { key_hash: multisig.Signature.key_hash },
+      signature: { keyHash: multisig.Signature.key_hash },
     };
   } else if ("Script" in multisig) {
     return {
-      script: { script_hash: multisig.Script.script_hash },
+      script: { scriptHash: multisig.Script.script_hash },
     };
   } else if ("AtLeast" in multisig) {
     return {

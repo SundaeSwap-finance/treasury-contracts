@@ -97,7 +97,7 @@ export async function getSigners(
 
   for (const permission of permissions) {
     if ("signature" in permission) {
-      signers.push(Ed25519KeyHashHex(permission.signature.key_hash));
+      signers.push(Ed25519KeyHashHex(permission.signature.keyHash));
     }
 
     if ("atLeast" in permission) {
@@ -421,12 +421,12 @@ export async function addressOrHexToPermission(
       case CredentialType.KeyHash:
         return {
           label,
-          signature: { key_hash: address_str },
+          signature: { keyHash: address_str },
         };
       case CredentialType.ScriptHash:
         return {
           label,
-          script: { script_hash: address_str },
+          script: { scriptHash: address_str },
         };
       default:
         throw new Error("Unrecognized credential type");
@@ -446,14 +446,14 @@ export async function addressOrHexToPermission(
           return {
             label,
             signature: {
-              key_hash: address.getProps().paymentPart!.hash,
+              keyHash: address.getProps().paymentPart!.hash,
             },
           };
         case CredentialType.ScriptHash:
           return {
             label,
             script: {
-              script_hash: address.getProps()!.paymentPart!.hash,
+              scriptHash: address.getProps()!.paymentPart!.hash,
             },
           };
         default:
@@ -471,14 +471,14 @@ export async function addressOrHexToPermission(
           return {
             label,
             signature: {
-              key_hash: address.asReward()!.getPaymentCredential().hash,
+              keyHash: address.asReward()!.getPaymentCredential().hash,
             },
           };
         case CredentialType.ScriptHash:
           return {
             label,
             script: {
-              script_hash: address.asReward()!.getPaymentCredential().hash,
+              scriptHash: address.asReward()!.getPaymentCredential().hash,
             },
           };
         default:
