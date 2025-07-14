@@ -860,9 +860,9 @@ export async function configToMetaData(
     TPermissionName,
     TPermissionMetadata | TPermissionName | null
   >,
-  seed_utxo: {
-    transaction_id: string;
-    output_index: bigint;
+  seedUtxo: {
+    transactionId: string;
+    outputIndex: bigint;
   },
 ): Promise<ITransactionMetadata<INewInstance>> {
   return await getTransactionMetadata(instance, {
@@ -877,7 +877,7 @@ export async function configToMetaData(
       message: "Longer human readable description for this treasury instance?",
     }),
     permissions,
-    seed_utxo,
+    seedUtxo,
   });
 }
 

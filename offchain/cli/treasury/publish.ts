@@ -26,8 +26,8 @@ import {
 export async function publish(): Promise<void> {
   const blazeInstance = await getBlazeInstance();
   const { scripts, metadata } = await getConfigs(blazeInstance);
-  let seed_utxo = metadata?.body.seed_utxo;
-  if (!seed_utxo) {
+  let seedUtxo = metadata?.body.seedUtxo;
+  if (!seedUtxo) {
     const utxo = await input({
       message:
         "Enter the transaction output (txId#idx) that was used to bootstrap the instance: ",
@@ -39,12 +39,15 @@ export async function publish(): Promise<void> {
       },
     });
     const [txId, outputIndex] = utxo.split("#");
-    seed_utxo = {
-      transaction_id: txId,
-      output_index: BigInt(outputIndex),
+    seedUtxo = {
+      transactionId: txId,
+      outputIndex: BigInt(outputIndex),
     };
   }
-  const oneshotScript = new OneshotOneshotMint(seed_utxo);
+  const oneshotScript = new OneshotOneshotMint({
+    transaction_id: seedUtxo.transactionId,
+    output_index: seedUtxo.outputIndex,
+  });
 
   const registry_token = oneshotScript.Script;
   console.log(`Registry token policy ID: ${registry_token.hash()}`);
@@ -109,8 +112,8 @@ export async function publish(): Promise<void> {
         const bootstrapUtxoObj =
           await blazeInstance.provider.resolveUnspentOutputs([
             new TransactionInput(
-              TransactionId(seed_utxo.transaction_id),
-              seed_utxo.output_index,
+              TransactionId(seedUtxo.transactionId),
+              seedUtxo.outputIndex,
             ),
           ]);
 
