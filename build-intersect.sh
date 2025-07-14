@@ -45,7 +45,7 @@ echo "  lib/logic/vendor/sweep.ak           = ${SHA256}"
 SHA256=$(cat lib/logic/vendor/withdraw.ak | sha256sum | cut -f 1 -d ' ')
 echo "  lib/logic/vendor/withdraw.ak        = ${SHA256}"
 
-X=$(./codegen.sh > /dev/null 2&>1)
+X=$(./codegen.sh > /dev/null 2>&1)
 
 echo
 echo "Compiling instance..."
