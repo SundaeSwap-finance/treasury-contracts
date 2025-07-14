@@ -1269,7 +1269,7 @@ export async function getTransactionMetadata<MetadataBody>(
   body: MetadataBody,
 ): Promise<ITransactionMetadata<MetadataBody>> {
   return {
-    "@context": "sundae.fi/sample-context",
+    "@context": "https://raw.githubusercontent.com/SundaeSwap-finance/treasury-contracts/refs/heads/main/offchain/src/metadata/context.jsonld",
     hashAlgorithm: "blake2b-256",
     body: body,
     instance,
