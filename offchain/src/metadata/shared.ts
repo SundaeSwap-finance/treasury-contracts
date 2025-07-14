@@ -113,7 +113,7 @@ export async function fromTxMetadata(
 
 export function toTxMetadata(m: ITransactionMetadata): Metadata {
   const root = new MetadatumMap();
-  root.insert(Metadatum.newText("@context"), Metadatum.newText(m["@context"]));
+  root.insert(Metadatum.newText("@context"), toMetadatum(m["@context"])!);
   root.insert(
     Metadatum.newText("hashAlgorithm"),
     Metadatum.newText(m.hashAlgorithm),
