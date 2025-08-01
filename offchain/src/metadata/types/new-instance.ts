@@ -14,7 +14,7 @@ export interface INewInstance extends IMetadataBodyBase {
     TPermissionMetadata | TPermissionName | null
   >;
   seedUtxo: {
-    transactionId: string;
-    outputIndex: bigint;
+    transaction_id: string;
+    output_index: bigint;
   };
 }

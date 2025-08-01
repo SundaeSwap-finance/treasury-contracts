@@ -40,14 +40,11 @@ export async function publish(): Promise<void> {
     });
     const [txId, outputIndex] = utxo.split("#");
     seedUtxo = {
-      transactionId: txId,
-      outputIndex: BigInt(outputIndex),
+      transaction_id: txId,
+      output_index: BigInt(outputIndex),
     };
   }
-  const oneshotScript = new OneshotOneshotMint({
-    transaction_id: seedUtxo.transactionId,
-    output_index: seedUtxo.outputIndex,
-  });
+  const oneshotScript = new OneshotOneshotMint(seedUtxo);
 
   const registry_token = oneshotScript.Script;
   console.log(`Registry token policy ID: ${registry_token.hash()}`);
@@ -112,8 +109,8 @@ export async function publish(): Promise<void> {
         const bootstrapUtxoObj =
           await blazeInstance.provider.resolveUnspentOutputs([
             new TransactionInput(
-              TransactionId(seedUtxo.transactionId),
-              seedUtxo.outputIndex,
+              TransactionId(seedUtxo.transaction_id),
+              seedUtxo.output_index,
             ),
           ]);
 

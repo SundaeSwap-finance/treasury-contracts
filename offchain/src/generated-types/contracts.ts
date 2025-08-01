@@ -236,6 +236,7 @@ export class OneshotOneshotSpend {
 export class OneshotOneshotMint {
   public Script: Script;
   constructor(utxoRef: OutputReference, trace: boolean = false) {
+    console.log(utxoRef);
     this.Script = cborToScript(
       applyParamsToScript(
         trace
