@@ -13,11 +13,11 @@ import {
 import { Vendor } from "src";
 import { VendorDatum } from "src/generated-types/contracts";
 import { toPermission } from "src/metadata/types/permission";
-import { IMilestone, IWithdraw } from "src/metadata/types/withdraw";
+import { IWithdraw, IWithdrawMilestone } from "src/metadata/types/withdraw";
 
 async function getFinishedMilestones(
   vendorInputs: TransactionUnspentOutput[],
-): Promise<Record<string, IMilestone>> {
+): Promise<Record<string, IWithdrawMilestone>> {
   const maturedPayouts = vendorInputs
     .map((input, index) => {
       const data = input.output().datum()?.asInlineData();
@@ -35,7 +35,7 @@ async function getFinishedMilestones(
     .flat()
     .filter((p) => p !== undefined);
 
-  const milestones: Record<string, IMilestone> = {};
+  const milestones: Record<string, IWithdrawMilestone> = {};
 
   for (const { index, payout } of maturedPayouts) {
     const identifier = await input({
@@ -49,7 +49,7 @@ async function getFinishedMilestones(
       comment: await input({
         message: `Enter the description for milestone ${identifier}:`,
       }),
-    } as IMilestone;
+    } as IWithdrawMilestone;
     milestones[identifier] = milestone;
   }
   return milestones;
