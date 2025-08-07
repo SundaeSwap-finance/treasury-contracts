@@ -1,6 +1,6 @@
 {
   "name": "@sundaeswap/treasury-funds",
-  "version": "0.0.15",
+  "version": "0.0.16",
   "type": "module",
   "license": "MIT",
   "main": "./dist/cjs/index.js",
