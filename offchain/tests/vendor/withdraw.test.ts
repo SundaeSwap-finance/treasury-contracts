@@ -9,6 +9,7 @@ import * as Data from "@blaze-cardano/data";
 import { Emulator } from "@blaze-cardano/emulator";
 import { Core, makeValue } from "@blaze-cardano/sdk";
 import { beforeEach, describe, test } from "bun:test";
+import { ETransactionEvent } from "src";
 import {
   MultisigScript,
   VendorDatum,
@@ -233,6 +234,41 @@ describe("When withdrawing from the vendor script", () => {
   });
 
   describe("the vendor", () => {
+    test("can complete milestones", async () => {
+      emulator.stepForwardToSlot(2n);
+      await emulator.as(Vendor, async (blaze) => {
+        await emulator.expectValidTransaction(
+          blaze,
+          await withdraw({
+            configsOrScripts,
+            blaze,
+            now: new Date(Number(emulator.slotToUnix(Slot(2)))),
+            inputs: [scriptInput],
+            signers: [vendorSigner],
+            metadata: {
+              "@context": "test",
+              hashAlgorithm: "blake2b-256",
+              instance: "example-instance",
+              txAuthor: "author",
+              body: {
+                event: ETransactionEvent.COMPLETE,
+                milestones: {
+                  "m-1": {
+                    description: "example description",
+                    evidence: [
+                      {
+                        label: "Milestone evidence",
+                        anchorUrl: "https://example.com",
+                      },
+                    ],
+                  },
+                },
+              },
+            },
+          }),
+        );
+      });
+    });
     test("can withdraw a matured payouts", async () => {
       emulator.stepForwardToSlot(2n);
       await emulator.as(Vendor, async (blaze, vendorAddress) => {
