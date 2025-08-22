@@ -48,7 +48,7 @@ export async function withdraw<P extends Provider, W extends Wallet>({
   metadata,
 }: IWithdrawArgs<P, W>): Promise<TxBuilder> {
   const { configs, scripts } = loadConfigsAndScripts(blaze, configsOrScripts);
-  const { script, scriptAddress } = scripts.vendorScript;
+  const { scriptAddress } = scripts.vendorScript;
   const registryInput = await blaze.provider.getUnspentOutputByNFT(
     AssetId(configs.vendor.registry_token + toHex(Buffer.from("REGISTRY"))),
   );
