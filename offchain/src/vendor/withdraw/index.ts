@@ -48,20 +48,27 @@ export async function withdraw<P extends Provider, W extends Wallet>({
   metadata,
 }: IWithdrawArgs<P, W>): Promise<TxBuilder> {
   const { configs, scripts } = loadConfigsAndScripts(blaze, configsOrScripts);
-  const { script, scriptAddress } = scripts.vendorScript;
+  const { scriptAddress, scriptRef } = scripts.vendorScript;
   const registryInput = await blaze.provider.getUnspentOutputByNFT(
     AssetId(configs.vendor.registry_token + toHex(Buffer.from("REGISTRY"))),
   );
 
-  const refInput = await blaze.provider.resolveScriptRef(script.Script.hash());
-  if (!refInput)
-    throw new Error("Could not find vendor script reference on-chain");
-
   let tx = blaze
     .newTransaction()
     .addReferenceInput(registryInput)
-    .addReferenceInput(refInput)
     .setValidFrom(blaze.provider.unixToSlot(now.valueOf()));
+
+  if (!scriptRef) {
+    scripts.vendorScript.scriptRef = await blaze.provider.resolveScriptRef(
+      scripts.vendorScript.script.Script,
+    );
+  }
+  if (scripts.vendorScript.scriptRef) {
+    tx.addReferenceInput(scripts.vendorScript.scriptRef);
+  } else {
+    tx.provideScript(scripts.vendorScript.script.Script);
+  }
+
   if (metadata) {
     const auxData = new AuxiliaryData();
     auxData.setMetadata(toTxMetadata(metadata));
