@@ -59,7 +59,7 @@ export async function fund<P extends Provider, W extends Wallet>({
     AssetId(configs.treasury.registry_token + toHex(Buffer.from("REGISTRY"))),
   );
 
-  let tx = blaze.newTransaction().addReferenceInput(registryInput);
+  const tx = blaze.newTransaction().addReferenceInput(registryInput);
 
   if (validFromSlot) {
     tx.setValidFrom(Slot(validFromSlot));
@@ -92,11 +92,11 @@ export async function fund<P extends Provider, W extends Wallet>({
   if (metadata) {
     const auxData = new AuxiliaryData();
     auxData.setMetadata(toTxMetadata(metadata));
-    tx = tx.setAuxiliaryData(auxData);
+    tx.setAuxiliaryData(auxData);
   }
 
   for (const signer of signers) {
-    tx = tx.addRequiredSigner(signer);
+    tx.addRequiredSigner(signer);
   }
 
   const totalPayout = schedule.reduce(
@@ -104,7 +104,7 @@ export async function fund<P extends Provider, W extends Wallet>({
     makeValue(0n),
   );
 
-  tx = tx.addInput(
+  tx.addInput(
     input,
     Data.serialize(TreasurySpendRedeemer, {
       Fund: {
