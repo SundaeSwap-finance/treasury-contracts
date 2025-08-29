@@ -63,8 +63,6 @@ export async function fund<P extends Provider, W extends Wallet>({
 
   if (validFromSlot) {
     tx.setValidFrom(Slot(validFromSlot));
-  } else {
-    tx.setValidFrom(Slot(blaze.provider.unixToSlot(Date.now())));
   }
 
   if (validUntilSlot) {
