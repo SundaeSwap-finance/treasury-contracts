@@ -63,15 +63,20 @@ export async function fund<P extends Provider, W extends Wallet>({
 
   if (validFromSlot) {
     tx.setValidFrom(Slot(validFromSlot));
+  } else {
+    tx.setValidFrom(Slot(blaze.provider.unixToSlot(Date.now())));
   }
 
   if (validUntilSlot) {
     tx.setValidUntil(Slot(validUntilSlot));
   } else {
+    const start = validFromSlot
+      ? blaze.provider.slotToUnix(validFromSlot)
+      : Date.now();
     const maxHorizon = blaze.provider.network === NetworkId.Testnet ? 6 : 36;
     const upperBoundUnix = Math.min(
       Number(configs.treasury.expiration),
-      new Date().valueOf() + maxHorizon * 60 * 60 * 1000,
+      start + maxHorizon * 60 * 60 * 1000,
     );
 
     const upperBoundSlot = blaze.provider.unixToSlot(upperBoundUnix) - 30;
