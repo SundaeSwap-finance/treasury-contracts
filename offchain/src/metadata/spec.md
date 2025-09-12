@@ -107,8 +107,8 @@ In each of these transactions, the following metadata will be attached:
   "txAuthor": "c27...",
   "instance": "1ef...",
   "body": {
-    "event": "initialize | reorganize"
-    "reason": "human readable justification for this reorganize; optional in the case of withdraw"
+    "event": "initialize | reorganize",
+    "reason": "human readable justification for this reorganize; optional in the case of withdraw",
     "outputs": {
       0: { "identifier": "...", "label": "..." }
     }
@@ -133,7 +133,7 @@ When we pay funds out of the treasury smart contract, into the vendor contract, 
   "txAuthor": "c27...",
   "instance": "1ef...",
   "body": {
-    "event": "fund"
+    "event": "fund",
     "identifier": "PO123",
     "otherIdentifiers": [...],
     "label": "Human Readable Title",
@@ -218,7 +218,7 @@ The vendor contract can be spent to “withdraw” funds, and withdraw zero fund
   "txAuthor": "c27...",
   "instance": "1ef...",
   "body": {
-    "event": "complete"
+    "event": "complete",
     "milestones": {
       "001": {
         "description": "long-form markdown annotated description",
@@ -252,7 +252,7 @@ Funds may be withdrawn from the vendor contract. In such cases, the metadata wil
   "txAuthor": "c27...",
   "instance": "1ef...",
   "body": {
-    "event": "withdraw"
+    "event": "withdraw",
     "milestones": {
       "001": {
         "comment": "long-form markdown annotated comment (can be blank)"
@@ -297,7 +297,7 @@ After resolving the issue with a milestone, the oversight committee can resume t
   "txAuthor": "c27...",
   "instance": "1ef...",
   "body": {
-    "event": "resume"
+    "event": "resume",
       "milestones": {
       "001": {
         "reason": "long-form markdown annotated description"
@@ -318,7 +318,7 @@ In rare cases, the vendor and the oversight committee both agree to modify a pro
   "txAuthor": "c27...",
   "instance": "1ef...",
   "body": {
-    "event": "modify"
+    "event": "modify",
     "identifier": "PO123",
     "otherIdentifiers": [...],
     "label": "Human Readable Title",
@@ -357,7 +357,7 @@ As a special case, the project may be completely cancelled and refunded to the t
   "txAuthor": "c27...",
   "instance": "1ef...",
   "body": {
-    "event": "cancel"
+    "event": "cancel",
     "reason": "long-form reason for the cancellation",
   }
 }
@@ -374,7 +374,7 @@ Finally, at the end of the lifecycle of funds, any surplus may be swept back to 
   "txAuthor": "c27...",
   "instance": "1ef...",
   "body": {
-    "event": "sweep"
+    "event": "sweep",
     "comment": "a long form comment on why funds are being swept now",
   }
 }
