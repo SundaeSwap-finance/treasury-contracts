@@ -183,18 +183,21 @@ A disburse transaction will have the following metadata attached to it:
   "txAuthor": "c27...",
   "instance": "1ef...",
   "body": {
-    "event": "disburse"
+    "event": "disburse",
     "label": "Human Readable Title",
     "description": "long-form markdown annotated description",
     "justification": "long-form markdown justification",
-    "destination": {
-      "label": "Coinbase",
-      "details": {
-        "anchorUrl": "ipfs://...",
-        "anchorDataHash": "..."
+    "destinations": {
+      "0": {
+        "label": "Coinbase",
+        "amount": 1234,
+        "estimatedReturn": 12345,
+        "details": {
+          "anchorUrl": "ipfs://...",
+          "anchorDataHash": "..."
+        }
       }
-    },
-    "estimatedReturn": 1234
+    }
   }
 }
 ```
