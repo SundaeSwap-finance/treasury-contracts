@@ -14,7 +14,7 @@ pub type AllowlistConfig {
 /// A vendor script, for an ongoing project with an owner
 validator allowlist_vendor(config: AllowlistConfig) {
   withdraw(
-    redeemer: Address,
+    _r: Data,
     _c: Credential,
     self: Transaction,
   ) {
@@ -24,7 +24,7 @@ validator allowlist_vendor(config: AllowlistConfig) {
     or {
       is_fund_transaction(registry, self),
       is_modify_transaction(registry, self),
-      is_valid_withdraw_transaction(config, redeemer, registry, self),
+      is_valid_withdraw_transaction(config.addresses, registry, self),
     }
   }
 
@@ -74,7 +74,7 @@ fn is_modify_transaction(registry: ScriptHashRegistry, self: Transaction) {
   }
 }
 
-fn is_valid_withdraw_transaction(config: AllowlistConfig, target: Address, registry: ScriptHashRegistry, self: Transaction) {
+fn is_valid_withdraw_transaction(targets: List<Address>, registry: ScriptHashRegistry, self: Transaction) {
   let vendor_input = self.inputs
     |> list.find(fn(i) { i.output.address.payment_credential == registry.vendor })
 
@@ -85,10 +85,8 @@ fn is_valid_withdraw_transaction(config: AllowlistConfig, target: Address, regis
 
       expect redeemer: VendorSpendRedeemer = redeemer
 
-      expect list.has(config.addresses, target)
-
       when redeemer is {
-        Withdraw -> net_outflow_is_allowed(target, registry, self)
+        Withdraw -> net_outflow_is_allowed(targets, registry, self)
         _ -> False
       }
     }
@@ -96,7 +94,7 @@ fn is_valid_withdraw_transaction(config: AllowlistConfig, target: Address, regis
   }
 }
 
-fn net_outflow_is_allowed(target: Address, registry: ScriptHashRegistry, self: Transaction) {
+fn net_outflow_is_allowed(targets: List<Address>, registry: ScriptHashRegistry, self: Transaction) {
   let inputs = outputs_of(self.inputs)
   // The (positive) quantity of ADA leaving the vendor address
   // so if the user is withdrawing 100 ADA, this will be 100 ada
@@ -107,21 +105,21 @@ fn net_outflow_is_allowed(target: Address, registry: ScriptHashRegistry, self: T
   // The (positive) quantity of ADA entering the target address
   // so if the wallet address has 10 ada on the inputs, and 110 ada on the outputs,
   // this will be 100 ada
-  let target_input_sum = value_sum_address(inputs, target)
-  let target_sum = value_sum_address(self.outputs, target)
-  let target_inflow = target_input_sum |> assets.negate |> assets.merge(vendor_output_sum)
+  let target_input_sum = value_sum_addresses(inputs, targets)
+  let target_output_sum = value_sum_addresses(self.outputs, targets)
+  let target_inflow = target_input_sum |> assets.negate |> assets.merge(target_output_sum)
 
   // The target inflow can have more ADA, to account for minUTxO, but not less
   equal_plus_min_ada(vendor_outflow, target_inflow)
 }
 
 // Like value_sum, but for a specific address instead
-pub fn value_sum_address(
+pub fn value_sum_addresses(
   outputs: List<Output>,
-  address: Address,
+  addresses: List<Address>,
 ) -> Value {
   outputs
-    |> list.filter(fn(output) { output.address == address })
+    |> list.filter(fn(output) { list.has(addresses, output.address) })
     |> list.map(fn(output) { output.value })
     |> list.reduce(assets.zero, assets.merge)
 }
