@@ -2,6 +2,8 @@ import {
   AssetId,
   AuxiliaryData,
   Ed25519KeyHashHex,
+  PlutusData,
+  Script,
   toHex,
   TransactionUnspentOutput,
 } from "@blaze-cardano/core";
@@ -25,6 +27,7 @@ import {
 import type { IPause, IResume } from "../../metadata/types/adjudicate.js";
 import {
   loadConfigsAndScripts,
+  rewardAccountFromScript,
   TConfigsOrScripts,
 } from "../../shared/index.js";
 
@@ -35,6 +38,7 @@ export interface IAdjudicateArgs<P extends Provider, W extends Wallet> {
   input: TransactionUnspentOutput;
   statuses: PayoutStatus[];
   signers: Ed25519KeyHashHex[];
+  additionalScripts: { script: Script; redeemer: PlutusData }[];
   metadata?: ITransactionMetadata<IPause | IResume>;
 }
 
@@ -45,6 +49,7 @@ export async function adjudicate<P extends Provider, W extends Wallet>({
   input,
   statuses,
   signers,
+  additionalScripts,
   metadata,
 }: IAdjudicateArgs<P, W>): Promise<TxBuilder> {
   const { configs, scripts } = loadConfigsAndScripts(blaze, configsOrScripts);
@@ -77,6 +82,17 @@ export async function adjudicate<P extends Provider, W extends Wallet>({
         },
       }),
     );
+
+  if (!!additionalScripts) {
+    for (const { script, redeemer } of additionalScripts) {
+      tx = tx.addWithdrawal(
+        rewardAccountFromScript(script, blaze.provider.network),
+        0n,
+        redeemer,
+      );
+    }
+  }
+
   if (metadata) {
     const auxData = new AuxiliaryData();
     auxData.setMetadata(toTxMetadata(metadata));

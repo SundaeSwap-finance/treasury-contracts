@@ -3,6 +3,8 @@ import {
   AssetId,
   AuxiliaryData,
   Ed25519KeyHashHex,
+  PlutusData,
+  Script,
   toHex,
   TransactionUnspentOutput,
 } from "@blaze-cardano/core";
@@ -25,6 +27,7 @@ import { IWithdraw } from "../../metadata/types/withdraw.js";
 import {
   contractsValueToCoreValue,
   loadConfigsAndScripts,
+  rewardAccountFromScript,
   TConfigsOrScripts,
 } from "../../shared/index.js";
 
@@ -35,6 +38,7 @@ export interface IWithdrawArgs<P extends Provider, W extends Wallet> {
   inputs: TransactionUnspentOutput[];
   destination?: Address;
   signers: Ed25519KeyHashHex[];
+  additionalScripts: { script: Script; redeemer: PlutusData }[];
   metadata?: ITransactionMetadata<IWithdraw | IComplete>;
 }
 
@@ -45,6 +49,7 @@ export async function withdraw<P extends Provider, W extends Wallet>({
   inputs,
   destination,
   signers,
+  additionalScripts,
   metadata,
 }: IWithdrawArgs<P, W>): Promise<TxBuilder> {
   const { configs, scripts } = loadConfigsAndScripts(blaze, configsOrScripts);
@@ -57,6 +62,16 @@ export async function withdraw<P extends Provider, W extends Wallet>({
     .newTransaction()
     .addReferenceInput(registryInput)
     .setValidFrom(blaze.provider.unixToSlot(now.valueOf()));
+
+  if (!!additionalScripts) {
+    for (const { script, redeemer } of additionalScripts) {
+      tx = tx.addWithdrawal(
+        rewardAccountFromScript(script, blaze.provider.network),
+        0n,
+        redeemer,
+      );
+    }
+  }
 
   if (!scripts.vendorScript.scriptRef) {
     scripts.vendorScript.scriptRef = await blaze.provider.resolveScriptRef(

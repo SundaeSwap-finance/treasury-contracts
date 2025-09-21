@@ -3,6 +3,8 @@ import {
   AssetId,
   Datum,
   Ed25519KeyHashHex,
+  PlutusData,
+  Script,
   Slot,
   toHex,
   TransactionUnspentOutput,
@@ -21,6 +23,7 @@ import { TreasurySpendRedeemer } from "../../generated-types/contracts.js";
 import {
   coreValueToContractsValue,
   loadConfigsAndScripts,
+  rewardAccountFromScript,
   TConfigsOrScripts,
 } from "../../shared/index.js";
 
@@ -32,6 +35,7 @@ export interface IDisburseArgs<P extends Provider, W extends Wallet> {
   amount: Value;
   datum?: Datum;
   signers: Ed25519KeyHashHex[];
+  additionalScripts?: { script: Script; redeemer: PlutusData }[];
   after?: boolean;
 }
 
@@ -43,6 +47,7 @@ export async function disburse<P extends Provider, W extends Wallet>({
   amount,
   datum = undefined,
   signers,
+  additionalScripts,
   after = false,
 }: IDisburseArgs<P, W>): Promise<TxBuilder> {
   console.log("Disburse transaction started");
@@ -62,6 +67,16 @@ export async function disburse<P extends Provider, W extends Wallet>({
     .newTransaction()
     .addReferenceInput(registryInput)
     .addReferenceInput(refInput);
+
+  if (!!additionalScripts) {
+    for (const { script, redeemer } of additionalScripts) {
+      tx = tx.addWithdrawal(
+        rewardAccountFromScript(script, blaze.provider.network),
+        0n,
+        redeemer,
+      );
+    }
+  }
 
   if (after) {
     tx = tx.setValidFrom(Slot(Number(configs.treasury.expiration / 1000n) + 1));

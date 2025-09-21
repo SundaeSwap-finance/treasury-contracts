@@ -1,5 +1,7 @@
 import {
   Address,
+  CredentialType,
+  NetworkId,
   RewardAccount,
   Script,
   TransactionUnspentOutput,
@@ -301,4 +303,15 @@ export function contractsValueToCoreValue(amount: {
   }
 
   return makeValue((amount[""] ?? {})[""] ?? 0n, ...values);
+}
+
+export function rewardAccountFromScript(
+  script: Script,
+  network: NetworkId,
+): RewardAccount {
+  const credential: Cardano.Credential = {
+    type: CredentialType.ScriptHash,
+    hash: script.hash(),
+  };
+  return RewardAccount.fromCredential(credential, network);
 }

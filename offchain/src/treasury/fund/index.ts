@@ -3,6 +3,8 @@ import {
   AuxiliaryData,
   Ed25519KeyHashHex,
   NetworkId,
+  PlutusData,
+  Script,
   Slot,
   toHex,
   TransactionUnspentOutput,
@@ -28,6 +30,7 @@ import { IFund } from "../../metadata/types/fund.js";
 import {
   coreValueToContractsValue,
   loadConfigsAndScripts,
+  rewardAccountFromScript,
   TConfigsOrScripts,
 } from "../../shared/index.js";
 
@@ -38,6 +41,7 @@ export interface IFundArgs<P extends Provider, W extends Wallet> {
   vendor: MultisigScript;
   schedule: { date: Date; amount: Value }[];
   signers: Ed25519KeyHashHex[];
+  additionalScripts?: { script: Script; redeemer: PlutusData }[];
   metadata?: ITransactionMetadata<IFund>;
 }
 
@@ -47,6 +51,7 @@ export async function fund<P extends Provider, W extends Wallet>({
   input,
   schedule,
   signers,
+  additionalScripts,
   metadata,
   vendor,
 }: IFundArgs<P, W>): Promise<TxBuilder> {
@@ -66,6 +71,16 @@ export async function fund<P extends Provider, W extends Wallet>({
     .newTransaction()
     .setValidUntil(Slot(upperBoundSlot))
     .addReferenceInput(registryInput);
+
+  if (!!additionalScripts) {
+    for (const { script, redeemer } of additionalScripts) {
+      tx = tx.addWithdrawal(
+        rewardAccountFromScript(script, blaze.provider.network),
+        0n,
+        redeemer,
+      );
+    }
+  }
 
   if (!scripts.treasuryScript.scriptRef) {
     scripts.treasuryScript.scriptRef = await blaze.provider.resolveScriptRef(
