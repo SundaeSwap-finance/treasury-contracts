@@ -33,7 +33,7 @@ export interface IModifyArgs<P extends Provider, W extends Wallet> {
   input: TransactionUnspentOutput;
   new_vendor: VendorDatum;
   signers: Ed25519KeyHashHex[];
-  additionalScripts: { script: Script; redeemer: PlutusData }[];
+  additionalScripts?: { script: Script; redeemer: PlutusData }[];
 }
 
 export async function modify<P extends Provider, W extends Wallet>({
@@ -70,11 +70,14 @@ export async function modify<P extends Provider, W extends Wallet>({
   }
   if (!!additionalScripts) {
     for (const { script, redeemer } of additionalScripts) {
-      tx = tx.addWithdrawal(
-        rewardAccountFromScript(script, blaze.provider.network),
-        0n,
-        redeemer,
-      );
+      const refInput = await blaze.provider.resolveScriptRef(script);
+      tx = tx
+        .addReferenceInput(refInput!)
+        .addWithdrawal(
+          rewardAccountFromScript(script, blaze.provider.network),
+          0n,
+          redeemer,
+        );
     }
   }
 

@@ -56,11 +56,14 @@ export async function reorganize<P extends Provider, W extends Wallet>({
 
   if (!!additionalScripts) {
     for (const { script, redeemer } of additionalScripts) {
-      tx = tx.addWithdrawal(
-        rewardAccountFromScript(script, blaze.provider.network),
-        0n,
-        redeemer,
-      );
+      const refInput = await blaze.provider.resolveScriptRef(script);
+      tx = tx
+        .addReferenceInput(refInput!)
+        .addWithdrawal(
+          rewardAccountFromScript(script, blaze.provider.network),
+          0n,
+          redeemer,
+        );
     }
   }
 

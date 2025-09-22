@@ -22,10 +22,10 @@ validator allowlist_vendor(config: AllowlistConfig) {
     let registry = find_script_hash_registry(self.reference_inputs, config.registry_token)
 
     or {
-      is_fund_transaction(registry, self),
-      is_modify_transaction(registry, self),
-      is_valid_withdraw_transaction(config.addresses, registry, self),
-    }
+      is_fund_transaction(registry, self)?,
+      is_modify_transaction(registry, self)?,
+      is_valid_withdraw_transaction(config.addresses, registry, self)?,
+    }?
   }
 
   // No other actions (withdrawing, minting, voting, etc.) are valid
@@ -86,7 +86,7 @@ fn is_valid_withdraw_transaction(targets: List<Address>, registry: ScriptHashReg
       expect redeemer: VendorSpendRedeemer = redeemer
 
       when redeemer is {
-        Withdraw -> net_outflow_is_allowed(targets, registry, self)
+        Withdraw -> net_outflow_is_allowed(targets, registry, self)?
         _ -> False
       }
     }
@@ -110,7 +110,7 @@ fn net_outflow_is_allowed(targets: List<Address>, registry: ScriptHashRegistry, 
   let target_inflow = target_input_sum |> assets.negate |> assets.merge(target_output_sum)
 
   // The target inflow can have more ADA, to account for minUTxO, but not less
-  equal_plus_min_ada(vendor_outflow, target_inflow)
+  equal_plus_min_ada(vendor_outflow, target_inflow)?
 }
 
 // Like value_sum, but for a specific address instead

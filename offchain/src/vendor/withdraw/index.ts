@@ -7,11 +7,12 @@ import {
   Script,
   toHex,
   TransactionUnspentOutput,
+  Value,
 } from "@blaze-cardano/core";
 import * as Data from "@blaze-cardano/data";
 import {
   TxBuilder,
-  Value,
+  Value as SdkValue,
   type Blaze,
   type Provider,
   type Wallet,
@@ -37,8 +38,9 @@ export interface IWithdrawArgs<P extends Provider, W extends Wallet> {
   now: Date;
   inputs: TransactionUnspentOutput[];
   destination?: Address;
+  destinations?: { address: Address; amount: Value }[];
   signers: Ed25519KeyHashHex[];
-  additionalScripts: { script: Script; redeemer: PlutusData }[];
+  additionalScripts?: { script: Script; redeemer: PlutusData }[];
   metadata?: ITransactionMetadata<IWithdraw | IComplete>;
 }
 
@@ -48,6 +50,7 @@ export async function withdraw<P extends Provider, W extends Wallet>({
   now,
   inputs,
   destination,
+  destinations,
   signers,
   additionalScripts,
   metadata,
@@ -65,11 +68,14 @@ export async function withdraw<P extends Provider, W extends Wallet>({
 
   if (!!additionalScripts) {
     for (const { script, redeemer } of additionalScripts) {
-      tx = tx.addWithdrawal(
-        rewardAccountFromScript(script, blaze.provider.network),
-        0n,
-        redeemer,
-      );
+      const refInput = await blaze.provider.resolveScriptRef(script);
+      tx = tx
+        .addReferenceInput(refInput!)
+        .addWithdrawal(
+          rewardAccountFromScript(script, blaze.provider.network),
+          0n,
+          redeemer,
+        );
     }
   }
 
@@ -95,7 +101,7 @@ export async function withdraw<P extends Provider, W extends Wallet>({
   }
 
   if (destination) {
-    let totalValue = Value.zero();
+    let totalValue = SdkValue.zero();
     for (let idx = 0; idx < inputs.length; idx++) {
       const input = inputs[idx];
       const oldDatum = input.output().datum()?.asInlineData();
@@ -109,13 +115,13 @@ export async function withdraw<P extends Provider, W extends Wallet>({
           vendor: datum.vendor,
           payouts: [],
         };
-        let thisValue = Value.zero();
+        let thisValue = SdkValue.zero();
         for (const payout of datum.payouts) {
           if (
             payout.status === "Active" &&
             payout.maturation < BigInt(now.valueOf())
           ) {
-            thisValue = Value.merge(
+            thisValue = SdkValue.merge(
               thisValue,
               contractsValueToCoreValue(payout.value),
             );
@@ -123,22 +129,29 @@ export async function withdraw<P extends Provider, W extends Wallet>({
             newDatum.payouts.push(payout);
           }
         }
-        const remainder = Value.merge(
+        const remainder = SdkValue.merge(
           input.output().amount(),
-          Value.negate(thisValue),
+          SdkValue.negate(thisValue),
         );
-        if (newDatum.payouts.length > 0 || !Value.empty(remainder)) {
+        if (newDatum.payouts.length > 0 || !SdkValue.empty(remainder)) {
           tx = tx.lockAssets(
             scriptAddress,
             remainder,
             Data.serialize(VendorDatum, newDatum),
           );
         }
-        totalValue = Value.merge(totalValue, thisValue);
+        totalValue = SdkValue.merge(totalValue, thisValue);
       }
     }
 
     tx = tx.payAssets(destination, totalValue);
+  } else if (destinations) {
+    for (const input of inputs) {
+      tx = tx.addInput(input, Data.serialize(VendorSpendRedeemer, "Withdraw"));
+    }
+    for (const { address, amount } of destinations) {
+      tx = tx.payAssets(address, amount);
+    }
   } else {
     for (let idx = 0; idx < inputs.length; idx++) {
       const input = inputs[idx];

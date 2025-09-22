@@ -19,6 +19,8 @@ import {
 import { type Cardano } from "@cardano-sdk/core";
 
 import {
+  AllowlistConfig,
+  AllowlistVendorAllowlistVendorWithdraw,
   TreasuryConfiguration,
   TreasuryTreasuryWithdraw,
   VendorConfiguration,
@@ -51,6 +53,14 @@ export interface IScriptsWithConfigs {
 }
 
 export type TConfigsOrScripts = IConfigsWithScripts | IScriptsWithConfigs;
+
+export interface ICompiledScripts {
+  treasuryScript: ICompiledScript<
+    TreasuryTreasuryWithdraw,
+    TreasuryConfiguration
+  >;
+  vendorScript: ICompiledScript<VendorVendorSpend, VendorConfiguration>;
+}
 
 export function loadConfigsAndScripts<P extends Provider, W extends Wallet>(
   blaze: Blaze<P, W>,
@@ -89,53 +99,7 @@ export function loadTreasuryScript(
   scriptRef?: TransactionUnspentOutput,
 ): ICompiledScript<TreasuryTreasuryWithdraw, TreasuryConfiguration> {
   const script = new TreasuryTreasuryWithdraw(config, trace);
-  return constructTreasuryScript(network, config, script.Script, scriptRef);
-}
-
-export function constructTreasuryScriptFromBytes(
-  network: Core.NetworkId,
-  config: TreasuryConfiguration,
-  scriptBytesHex: string,
-  scriptRef?: TransactionUnspentOutput,
-): ICompiledScript<TreasuryTreasuryWithdraw, TreasuryConfiguration> {
-  return constructTreasuryScript(
-    network,
-    config,
-    cborToScript(scriptBytesHex, "PlutusV3"),
-    scriptRef,
-  );
-}
-
-export function constructTreasuryScript(
-  network: Core.NetworkId,
-  config: TreasuryConfiguration,
-  script: Script,
-  scriptRef?: TransactionUnspentOutput,
-): ICompiledScript<TreasuryTreasuryWithdraw, TreasuryConfiguration> {
-  const credential: Cardano.Credential = {
-    type: Core.CredentialType.ScriptHash,
-    hash: script.hash(),
-  };
-  const rewardAccount = Core.RewardAccount.fromCredential(credential, network);
-  const scriptAddress = new Core.Address({
-    type: Core.AddressType.BasePaymentScriptStakeScript,
-    networkId: network,
-    paymentPart: credential,
-    delegationPart: credential,
-  });
-  if (scriptRef && scriptRef?.output()?.scriptRef()?.hash() !== script.hash()) {
-    throw new Error("Script ref points to the wrong script!");
-  }
-  return {
-    config,
-    script: {
-      Script: script,
-    },
-    credential,
-    rewardAccount,
-    scriptAddress,
-    scriptRef,
-  };
+  return constructScript(network, config, script.Script, scriptRef);
 }
 
 export function loadVendorScript(
@@ -145,59 +109,17 @@ export function loadVendorScript(
   scriptRef?: TransactionUnspentOutput,
 ): ICompiledScript<VendorVendorSpend, VendorConfiguration> {
   const script = new VendorVendorSpend(config, trace);
-  return constructVendorScript(network, config, script.Script, scriptRef);
+  return constructScript(network, config, script.Script, scriptRef);
 }
 
-export function constructVendorScriptFromBytes(
+export function loadAllowlistScript(
   network: Core.NetworkId,
-  config: VendorConfiguration,
-  scriptBytesHex: string,
+  config: AllowlistConfig,
+  trace?: boolean,
   scriptRef?: TransactionUnspentOutput,
-): ICompiledScript<VendorVendorSpend, VendorConfiguration> {
-  return constructVendorScript(
-    network,
-    config,
-    cborToScript(scriptBytesHex, "PlutusV3"),
-    scriptRef,
-  );
-}
-
-export function constructVendorScript(
-  network: Core.NetworkId,
-  config: VendorConfiguration,
-  script: Script,
-  scriptRef?: TransactionUnspentOutput,
-): ICompiledScript<VendorVendorSpend, VendorConfiguration> {
-  const credential: Cardano.Credential = {
-    type: Core.CredentialType.ScriptHash,
-    hash: script.hash(),
-  };
-  const scriptAddress = new Core.Address({
-    type: Core.AddressType.BasePaymentScriptStakeScript,
-    networkId: network,
-    paymentPart: credential,
-    delegationPart: credential,
-  });
-  if (scriptRef && scriptRef?.output()?.scriptRef()?.hash() !== script.hash()) {
-    throw new Error("Script ref points to the wrong script!");
-  }
-  return {
-    config,
-    script: {
-      Script: script,
-    },
-    credential,
-    scriptAddress,
-    scriptRef,
-  };
-}
-
-export interface ICompiledScripts {
-  treasuryScript: ICompiledScript<
-    TreasuryTreasuryWithdraw,
-    TreasuryConfiguration
-  >;
-  vendorScript: ICompiledScript<VendorVendorSpend, VendorConfiguration>;
+): ICompiledScript<AllowlistVendorAllowlistVendorWithdraw, AllowlistConfig> {
+  const script = new AllowlistVendorAllowlistVendorWithdraw(config);
+  return constructScript(network, config, script.Script, scriptRef);
 }
 
 export function loadScripts(
@@ -255,19 +177,63 @@ export function constructScripts(
   treasuryScriptRef?: TransactionUnspentOutput,
   vendorScriptRef?: TransactionUnspentOutput,
 ): ICompiledScripts {
-  const treasuryScript = constructTreasuryScript(
-    network,
-    treasuryConfig,
-    rawTreasuryScript,
-    treasuryScriptRef,
-  );
-  const vendorScript = constructVendorScript(
+  const treasuryScript = constructScript<
+    TreasuryTreasuryWithdraw,
+    TreasuryConfiguration
+  >(network, treasuryConfig, rawTreasuryScript, treasuryScriptRef);
+  const vendorScript = constructScript<VendorVendorSpend, VendorConfiguration>(
     network,
     vendorConfig,
     rawVendorScript,
     vendorScriptRef,
   );
   return { treasuryScript, vendorScript };
+}
+
+export function constructScriptFromBytes<T, C>(
+  network: Core.NetworkId,
+  config: C,
+  scriptBytesHex: string,
+  scriptRef?: TransactionUnspentOutput,
+): ICompiledScript<T, C> {
+  return constructScript(
+    network,
+    config,
+    cborToScript(scriptBytesHex, "PlutusV3"),
+    scriptRef,
+  );
+}
+
+export function constructScript<T, C>(
+  network: Core.NetworkId,
+  config: C,
+  script: Script,
+  scriptRef?: TransactionUnspentOutput,
+): ICompiledScript<T, C> {
+  const credential: Cardano.Credential = {
+    type: Core.CredentialType.ScriptHash,
+    hash: script.hash(),
+  };
+  const rewardAccount = Core.RewardAccount.fromCredential(credential, network);
+  const scriptAddress = new Core.Address({
+    type: Core.AddressType.BasePaymentScriptStakeScript,
+    networkId: network,
+    paymentPart: credential,
+    delegationPart: credential,
+  });
+  if (scriptRef && scriptRef?.output()?.scriptRef()?.hash() !== script.hash()) {
+    throw new Error("Script ref points to the wrong script!");
+  }
+  return {
+    config,
+    script: {
+      Script: script,
+    } as T,
+    credential,
+    scriptAddress,
+    rewardAccount,
+    scriptRef,
+  };
 }
 
 export function coreValueToContractsValue(amount: Value): {
@@ -303,6 +269,44 @@ export function contractsValueToCoreValue(amount: {
   }
 
   return makeValue((amount[""] ?? {})[""] ?? 0n, ...values);
+}
+
+export function coreAddressToContractsAddress(address: Address) {
+  const props = address.getProps();
+  let payment_credential: { VerificationKey: [string] } | { Script: [string] };
+  if (props.paymentPart?.type === CredentialType.KeyHash) {
+    payment_credential = {
+      VerificationKey: [props.paymentPart!.hash],
+    };
+  } else {
+    payment_credential = {
+      Script: [props.paymentPart!.hash],
+    };
+  }
+  let stake_credential: {
+    Inline: [{ VerificationKey: [string] } | { Script: [string] }];
+  };
+  if (props.delegationPart?.type === CredentialType.KeyHash) {
+    stake_credential = {
+      Inline: [
+        {
+          VerificationKey: [props.delegationPart!.hash],
+        },
+      ],
+    };
+  } else {
+    stake_credential = {
+      Inline: [
+        {
+          Script: [props.delegationPart!.hash],
+        },
+      ],
+    };
+  }
+  return {
+    payment_credential,
+    stake_credential,
+  };
 }
 
 export function rewardAccountFromScript(
