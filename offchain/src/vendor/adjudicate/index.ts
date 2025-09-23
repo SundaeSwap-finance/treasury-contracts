@@ -48,7 +48,7 @@ export async function adjudicate<P extends Provider, W extends Wallet>({
   metadata,
 }: IAdjudicateArgs<P, W>): Promise<TxBuilder> {
   const { configs, scripts } = loadConfigsAndScripts(blaze, configsOrScripts);
-  const { scriptAddress } = scripts.vendorScript;
+  const { scriptAddress: vendorScriptAddress } = scripts.vendorScript;
   const registryInput = await blaze.provider.getUnspentOutputByNFT(
     AssetId(configs.vendor.registry_token + toHex(Buffer.from("REGISTRY"))),
   );
@@ -111,7 +111,7 @@ export async function adjudicate<P extends Provider, W extends Wallet>({
   };
 
   tx = tx.lockAssets(
-    scriptAddress,
+    vendorScriptAddress,
     input.output().amount(),
     Data.serialize(VendorDatum, newDatum),
   );

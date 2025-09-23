@@ -32,9 +32,8 @@ export async function sweep<P extends Provider, W extends Wallet>({
   blaze,
 }: ISweepArgs<P, W>): Promise<TxBuilder> {
   const { configs, scripts } = loadConfigsAndScripts(blaze, configsOrScripts);
-
   const { scriptAddress: treasuryScriptAddress } = scripts.treasuryScript;
-  const { scriptAddress } = scripts.vendorScript;
+  const { scriptAddress: vendorScriptAddress } = scripts.vendorScript;
   const registryInput = await blaze.provider.getUnspentOutputByNFT(
     AssetId(configs.treasury.registry_token + toHex(Buffer.from("REGISTRY"))),
   );
@@ -75,7 +74,7 @@ export async function sweep<P extends Provider, W extends Wallet>({
     );
     if (!Value.empty(carryThrough)) {
       tx.lockAssets(
-        scriptAddress,
+        vendorScriptAddress,
         carryThrough,
         Data.serialize(VendorDatum, datum),
       );

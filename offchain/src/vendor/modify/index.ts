@@ -103,7 +103,7 @@ export async function cancel<P extends Provider, W extends Wallet>({
   signers,
 }: ICancelArgs<P, W>): Promise<TxBuilder> {
   const { configs, scripts } = loadConfigsAndScripts(blaze, configsOrScripts);
-  const { scriptAddress } = scripts.treasuryScript;
+  const { scriptAddress: treasuryScriptAddress } = scripts.treasuryScript;
   const registryInput = await blaze.provider.getUnspentOutputByNFT(
     AssetId(configs.vendor.registry_token + toHex(Buffer.from("REGISTRY"))),
   );
@@ -130,7 +130,11 @@ export async function cancel<P extends Provider, W extends Wallet>({
     tx = tx.addRequiredSigner(signer);
   }
 
-  tx = tx.lockAssets(scriptAddress, input.output().amount(), Data.Void());
+  tx = tx.lockAssets(
+    treasuryScriptAddress,
+    input.output().amount(),
+    Data.Void(),
+  );
 
   return tx;
 }

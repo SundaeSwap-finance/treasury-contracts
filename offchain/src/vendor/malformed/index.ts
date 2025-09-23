@@ -26,7 +26,7 @@ export async function sweep_malformed<P extends Provider, W extends Wallet>({
   blaze,
 }: ISweepMalformedArgs<P, W>): Promise<TxBuilder> {
   const { configs, scripts } = loadConfigsAndScripts(blaze, configsOrScripts);
-  const { scriptAddress } = scripts.treasuryScript;
+  const { scriptAddress: treasuryScriptAddress } = scripts.treasuryScript;
   const registryInput = await blaze.provider.getUnspentOutputByNFT(
     AssetId(configs.treasury.registry_token + toHex(Buffer.from("REGISTRY"))),
   );
@@ -50,7 +50,7 @@ export async function sweep_malformed<P extends Provider, W extends Wallet>({
     value = Value.merge(value, input.output().amount());
   }
 
-  tx = tx.lockAssets(scriptAddress, value, Data.Void());
+  tx = tx.lockAssets(treasuryScriptAddress, value, Data.Void());
 
   return tx;
 }
