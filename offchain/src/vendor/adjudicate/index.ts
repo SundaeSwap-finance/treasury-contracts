@@ -48,23 +48,16 @@ export async function adjudicate<P extends Provider, W extends Wallet>({
   metadata,
 }: IAdjudicateArgs<P, W>): Promise<TxBuilder> {
   const { configs, scripts } = loadConfigsAndScripts(blaze, configsOrScripts);
-  const { scriptAddress: vendorScriptAddress, script: vendorScript } =
-    scripts.vendorScript;
+  const { scriptAddress: vendorScriptAddress } = scripts.vendorScript;
   const registryInput = await blaze.provider.getUnspentOutputByNFT(
     AssetId(configs.vendor.registry_token + toHex(Buffer.from("REGISTRY"))),
   );
-  const refInput = await blaze.provider.resolveScriptRef(
-    vendorScript.Script.hash(),
-  );
-  if (!refInput)
-    throw new Error("Could not find vendor script reference on-chain");
 
   // TODO: switch based on network? on preview we can only project 12 hours in the future
   const thirty_six_hours = 12 * 60 * 60 * 1000; // 36 hours in milliseconds
   let tx = blaze
     .newTransaction()
     .addReferenceInput(registryInput)
-    .addReferenceInput(refInput)
     .setValidFrom(blaze.provider.unixToSlot(now.valueOf()))
     .setValidUntil(
       blaze.provider.unixToSlot(now.valueOf() + thirty_six_hours - 1000),
@@ -77,6 +70,18 @@ export async function adjudicate<P extends Provider, W extends Wallet>({
         },
       }),
     );
+
+  if (!scripts.vendorScript.scriptRef) {
+    scripts.vendorScript.scriptRef = await blaze.provider.resolveScriptRef(
+      scripts.vendorScript.script.Script,
+    );
+  }
+  if (scripts.vendorScript.scriptRef) {
+    tx.addReferenceInput(scripts.vendorScript.scriptRef);
+  } else {
+    tx.provideScript(scripts.vendorScript.script.Script);
+  }
+
   if (metadata) {
     const auxData = new AuxiliaryData();
     auxData.setMetadata(toTxMetadata(metadata));
