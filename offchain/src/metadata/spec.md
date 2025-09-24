@@ -212,7 +212,7 @@ A disburse transaction will have the following metadata attached to it:
 The description describes mechanically **what** is intended to happen with the funds (such as “swapping for a USD to mint USDM”).
 The justification defines **why** the oversight committee believes this falls within its remit as administrator of the treasury funds (“Vendor X cannot be paid in crypto”).
 The destination gives a human readable label for the destination, which can be aggregated across transactions (“NBX Exchange Account”).
-The additionalDestinations allows the author to add more destinations
+The additionalDestinations allows the author to add more destinations for funds.
 The estimatedReturn, if provided, gives an estimate, as a POSIX timestamp, of when the funds are expected to be returned to the treasury contract.
 
 # Complete
