@@ -11,7 +11,6 @@ export interface IDisburse extends IMetadataBodyBase {
   label: string;
   description: string;
   justification: string;
-  destination: IDestination;
-  additionalDestinations?: IDestination[];
-  estimatedReturn?: bigint;
+  destination: IDestination | IDestination[];
+  estimatedReturn: bigint;
 }

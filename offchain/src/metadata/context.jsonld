@@ -79,10 +79,6 @@
         },
         "justification": "tom:justification",
         "destination": "tom:destination",
-        "additionalDestinations": {
-          "@id": "tom:additionalDestinations",
-          "@container": "@set"
-        },
         "estimatedReturn": "tom:estimatedReturn"
       }
     }

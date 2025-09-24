@@ -174,7 +174,7 @@ Finally, each milestone itself **may** have a human readable label, description,
 
 # Disburse
 
-A disburse transaction will have the following metadata attached to it:
+A disburse transaction with a single destination will have the following metadata attached to it:
 
 ```json
 {
@@ -195,15 +195,6 @@ A disburse transaction will have the following metadata attached to it:
           "anchorDataHash": "..."
         }
       },
-    "additionalDestinations": [
-      {
-        "label": "Kraken",
-        "details": {
-          "anchorUrl": "ipfs://...",
-          "anchorDataHash": "..."
-        }
-      }
-    ],
     "estimatedReturn": 1234
   }
 }
@@ -211,8 +202,8 @@ A disburse transaction will have the following metadata attached to it:
 
 The description describes mechanically **what** is intended to happen with the funds (such as “swapping for a USD to mint USDM”).
 The justification defines **why** the oversight committee believes this falls within its remit as administrator of the treasury funds (“Vendor X cannot be paid in crypto”).
-The destination gives a human readable label for the destination, which can be aggregated across transactions (“NBX Exchange Account”).
-The additionalDestinations allows the author to add more destinations for funds.
+The destination gives a human readable label for the destination, which can be aggregated across transactions (“NBX Exchange Account”)
+Destination can be a single object or a set of objects (destinations).
 The estimatedReturn, if provided, gives an estimate, as a POSIX timestamp, of when the funds are expected to be returned to the treasury contract.
 
 # Complete
