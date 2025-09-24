@@ -1,6 +1,7 @@
 import {
   Address,
   AssetId,
+  AuxiliaryData,
   Datum,
   Ed25519KeyHashHex,
   Slot,
@@ -16,6 +17,9 @@ import {
   type Wallet,
 } from "@blaze-cardano/sdk";
 import * as Tx from "@blaze-cardano/tx";
+
+import { ITransactionMetadata, toTxMetadata } from "../../metadata/shared.js";
+import { IDisburse } from "../../metadata/types/disburse.js";
 
 import { TreasurySpendRedeemer } from "../../generated-types/contracts.js";
 import {
@@ -33,6 +37,7 @@ export interface IDisburseArgs<P extends Provider, W extends Wallet> {
   datum?: Datum;
   signers: Ed25519KeyHashHex[];
   after?: boolean;
+  metadata?: ITransactionMetadata<IDisburse>;
 }
 
 export async function disburse<P extends Provider, W extends Wallet>({
@@ -44,6 +49,7 @@ export async function disburse<P extends Provider, W extends Wallet>({
   datum = undefined,
   signers,
   after = false,
+  metadata,
 }: IDisburseArgs<P, W>): Promise<TxBuilder> {
   console.log("Disburse transaction started");
   const { configs, scripts } = loadConfigsAndScripts(blaze, configsOrScripts);
@@ -53,15 +59,18 @@ export async function disburse<P extends Provider, W extends Wallet>({
     AssetId(configs.treasury.registry_token + toHex(Buffer.from("REGISTRY"))),
   );
 
-  const refInput = await blaze.provider.resolveScriptRef(
-    treasuryScript.Script.hash(),
-  );
-  if (!refInput)
-    throw new Error("Could not find treasury script reference on-chain");
-  let tx = blaze
-    .newTransaction()
-    .addReferenceInput(registryInput)
-    .addReferenceInput(refInput);
+  let tx = blaze.newTransaction().addReferenceInput(registryInput);
+
+  if (!scripts.treasuryScript.scriptRef) {
+    scripts.treasuryScript.scriptRef = await blaze.provider.resolveScriptRef(
+      scripts.treasuryScript.script.Script,
+    );
+  }
+  if (scripts.treasuryScript.scriptRef) {
+    tx.addReferenceInput(scripts.treasuryScript.scriptRef);
+  } else {
+    tx.provideScript(scripts.treasuryScript.script.Script);
+  }
 
   if (after) {
     tx = tx.setValidFrom(Slot(Number(configs.treasury.expiration / 1000n) + 1));
@@ -69,6 +78,12 @@ export async function disburse<P extends Provider, W extends Wallet>({
     tx = tx.setValidUntil(
       Slot(Number(configs.treasury.expiration / 1000n) - 1),
     );
+  }
+
+  if (metadata) {
+    const auxData = new AuxiliaryData();
+    auxData.setMetadata(toTxMetadata(metadata));
+    tx = tx.setAuxiliaryData(auxData);
   }
 
   for (const signer of signers) {

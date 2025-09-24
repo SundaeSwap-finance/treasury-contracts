@@ -5,8 +5,8 @@ import {
   TransactionInput
 } from "@blaze-cardano/core";
 import { Blaze, makeValue, Provider, Wallet } from "@blaze-cardano/sdk";
-import { getBlazeInstance, getConfigs, transactionDialog } from "cli/shared";
-import { Treasury } from "src";
+import { getBlazeInstance, getConfigs, getTransactionMetadata, transactionDialog } from "cli/shared";
+import { IDestination, IDisburse, Treasury } from "src";
 
 export async function disburse(
   blazeInstance: Blaze<Provider, Wallet> | undefined = undefined,
@@ -14,7 +14,7 @@ export async function disburse(
   if (!blazeInstance) {
     blazeInstance = await getBlazeInstance();
   }
-  const { treasuryConfig, vendorConfig } = await getConfigs();
+  const { configs, scripts, metadata } = await getConfigs(blazeInstance);
 
   const input = (
     await blazeInstance.provider.resolveUnspentOutputs([
@@ -41,16 +41,51 @@ export async function disburse(
     ),
   ];
 
+  const metadataDestinations = [
+    {
+      label: "Coinbase",
+      details: {
+        anchorUrl: "ipfs://my-coinbase-destination-details",
+        anchorDataHash: "0000000000000000000000000000000000000000000000000000000000000000",
+      },
+    },
+    {
+      label: "Kraken",
+      details: {
+        anchorUrl: "ipfs://my-kraken-destination-details",
+        anchorDataHash: "0000000000000000000000000000000000000000000000000000000000000000",
+      },
+    },
+  ] as IDestination[];
+
+  const metadataBody = {
+    event: "disburse",
+    label: "Disbursement to mint stablecoins",
+    description: "My long form description of why I am disbursing",
+    justification: "This vendor agree to be a part of stablecoin pilot",
+    destination: metadataDestinations,
+    estimatedReturn: 0n,
+  } as IDisburse;
+
+  const txMetadata = await getTransactionMetadata(
+    configs.treasury.registry_token,
+    metadataBody,
+  );
+
   const tx = await (
-    await Treasury.disburse(
-      { treasury: treasuryConfig, vendor: vendorConfig },
-      blazeInstance,
+    await Treasury.disburse({
+      configsOrScripts: {
+        configs,
+        scripts,
+      },
+      blaze: blazeInstance,
       input,
       recipient,
       amount,
       datum,
       signers,
-    )
+      metadata: txMetadata,
+    })
   ).complete();
 
   await transactionDialog(blazeInstance.provider.network, tx.toCbor(), false);
