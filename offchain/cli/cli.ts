@@ -59,7 +59,7 @@ program
 
 program
   .command("disburse")
-  .description("Disburse funds from the treasury")
+  .description("Disburse funds from the treasury contract")
   .action(async () => {
     await disburse();
   });

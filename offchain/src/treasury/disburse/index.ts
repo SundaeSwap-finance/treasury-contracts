@@ -4,10 +4,9 @@ import {
   AuxiliaryData,
   Datum,
   Ed25519KeyHashHex,
-  Slot,
   toHex,
   TransactionUnspentOutput,
-  Value,
+  Value
 } from "@blaze-cardano/core";
 import * as Data from "@blaze-cardano/data";
 import {
@@ -32,7 +31,7 @@ export interface IDisburseArgs<P extends Provider, W extends Wallet> {
   configsOrScripts: TConfigsOrScripts;
   blaze: Blaze<P, W>;
   input: TransactionUnspentOutput;
-  recipient: Address;
+  recipient: Address; // todo: make array
   amount: Value;
   datum?: Datum;
   signers: Ed25519KeyHashHex[];
@@ -72,13 +71,14 @@ export async function disburse<P extends Provider, W extends Wallet>({
     tx.provideScript(scripts.treasuryScript.script.Script);
   }
 
-  if (after) {
-    tx = tx.setValidFrom(Slot(Number(configs.treasury.expiration / 1000n) + 1));
-  } else {
-    tx = tx.setValidUntil(
-      Slot(Number(configs.treasury.expiration / 1000n) - 1),
-    );
-  }
+  // todo: do disburse need validity range?
+  // if (after) {
+  //   tx = tx.setValidFrom(Slot(Number(configs.treasury.expiration / 1000n) + 1));
+  // } else {
+  //   tx = tx.setValidUntil(
+  //     Slot(Number(configs.treasury.expiration / 1000n) - 1),
+  //   );
+  // }
 
   if (metadata) {
     const auxData = new AuxiliaryData();
@@ -112,6 +112,6 @@ export async function disburse<P extends Provider, W extends Wallet>({
   if (!Tx.Value.empty(remainder)) {
     tx.lockAssets(treasuryScriptAddress, remainder, Data.Void());
   }
-
+  console.log("Disburse transaction built");
   return tx;
 }
