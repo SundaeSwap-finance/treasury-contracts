@@ -1,12 +1,71 @@
 import {
   Address,
-  Ed25519KeyHashHex
+  Ed25519KeyHashHex,
+  Value
 } from "@blaze-cardano/core";
 import { Blaze, makeValue, Provider, Wallet } from "@blaze-cardano/sdk";
-import { input } from "@inquirer/prompts";
-import { getBlazeInstance, getConfigs, getTransactionMetadata, selectUtxo, transactionDialog } from "cli/shared";
+import { input, select } from "@inquirer/prompts";
+import { getAnchor, getBlazeInstance, getConfigs, getDate, getOptional, getTransactionMetadata, selectUtxo, transactionDialog } from "cli/shared";
 import { IDestination, IDisburse, Treasury } from "src";
 import { loadTreasuryScript } from "src/shared";
+
+async function getDestinations(): Promise<{
+  recipients: { address: Address; amount: Value }[];
+  destinations: IDestination[];
+}> {
+  const recipients: { address: Address; amount: Value }[] = [];
+  const destinations: IDestination[] = [];
+  let moreDestinations = true;
+
+  while (moreDestinations) {
+
+    let destination: IDestination;
+
+    const label = await input({
+      message: "What is the name of the destination? (label)",
+      validate: (value) => (value ? true : "Destination label cannot be empty."),
+    });
+
+    // todo: check if there is already function we can reuse for this
+    const address = Address.fromBech32(
+      await input({
+        message: "Enter the address of the destination",
+        validate: (value) => (value ? true : "Destination address cannot be empty."),
+      }),
+    );
+
+    const amount = makeValue(BigInt(
+      await input({
+        message: `How much ada (in lovelace) should be sent to ${label}?`,
+        validate: (value) => {
+          const parsedValue = parseInt(value, 10);
+          return parsedValue > 0 ? true : "Amount must be a positive value.";
+        },
+      }),
+    ));
+
+    const details = await getOptional(
+      "Do you want to add details for this destination? (optional)",
+      undefined,
+      getAnchor,
+    );
+
+    destination = { label, details };
+
+    recipients.push({ address, amount });
+    destinations.push(destination);
+
+    moreDestinations = await select({
+      message: "Do you want to add another destination?",
+      choices: [
+        { name: "Yes", value: true },
+        { name: "No", value: false },
+      ],
+    });
+  }
+
+  return { destinations, recipients };
+}
 
 export async function disburse(
   blazeInstance: Blaze<Provider, Wallet> | undefined = undefined,
@@ -26,15 +85,9 @@ export async function disburse(
   );
   const inputUtxo = await selectUtxo(utxos);
 
-  // todo: for now, hardcode these values
-  // later, add prompts using getOutputs()
-  // const { amounts, outputs } = await getOutputs();
-
-  const recipient = Address.fromBech32(
-    "addr1qyr5l2h8gelmp4qph7kzpzkqtky3mv9yvgkmwvdm3xweu3qu5zwsv0wyc267my62pruyl0ruw3gwjj0v9nucpqhn2gxsv56tkv",
-  );
-  const amount = makeValue(10_000_000n);
+  // todo: check if this is needed
   const datum = undefined;
+
   const signers = [
     // int admin
     Ed25519KeyHashHex(
@@ -68,23 +121,6 @@ export async function disburse(
     ),
   ];
 
-  const metadataDestinations = [
-    {
-      label: "Coinbase",
-      details: {
-        anchorUrl: "ipfs://my-coinbase-destination-details",
-        anchorDataHash: "0000000000000000000000000000000000000000000000000000000000000000",
-      },
-    },
-    {
-      label: "Kraken",
-      details: {
-        anchorUrl: "ipfs://my-kraken-destination-details",
-        anchorDataHash: "0000000000000000000000000000000000000000000000000000000000000000",
-      },
-    },
-  ] as IDestination[];
-
   const metadataBody = {
     event: "disburse",
     label: await input({
@@ -99,9 +135,16 @@ export async function disburse(
       message: "What is the justification for this disbursement?",
       validate: (value) => (value ? true : "Justification cannot be empty."),
     }),
-    destination: metadataDestinations,
-    estimatedReturn: 0n,
+    destination: {} as IDestination,
+    estimatedReturn: BigInt(
+      (await getDate("When should the disbursed funds be returned?")).getTime()
+    ),
   } as IDisburse;
+
+  const { destinations, recipients } = await getDestinations();
+
+  // For now, only support one destination
+  metadataBody.destination = destinations[0];
 
   const txMetadata = await getTransactionMetadata(
     configs.treasury.registry_token,
@@ -116,8 +159,8 @@ export async function disburse(
       },
       blaze: blazeInstance,
       input: inputUtxo,
-      recipient,
-      amount,
+      recipient: recipients[0].address, // todo: make array
+      amount: recipients[0].amount, // todo: make array
       datum,
       signers,
       metadata: txMetadata,
