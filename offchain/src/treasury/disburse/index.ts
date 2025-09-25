@@ -4,6 +4,8 @@ import {
   AuxiliaryData,
   Datum,
   Ed25519KeyHashHex,
+  NetworkId,
+  Slot,
   toHex,
   TransactionUnspentOutput,
   Value
@@ -70,14 +72,24 @@ export async function disburse<P extends Provider, W extends Wallet>({
     tx.provideScript(scripts.treasuryScript.script.Script);
   }
 
-  // todo: do disburse need validity range?
-  // if (after) {
-  //   tx = tx.setValidFrom(Slot(Number(configs.treasury.expiration / 1000n) + 1));
-  // } else {
-  //   tx = tx.setValidUntil(
-  //     Slot(Number(configs.treasury.expiration / 1000n) - 1),
-  //   );
-  // }
+  // todo: probably clean this up, and have it match fund's way of handling validity
+  if (after) {
+    tx = tx.setValidFrom(
+      Slot(Number(configs.treasury.expiration) / 1000 + 1),
+    );
+  } else {
+    // tx = tx.setValidUntil(
+    //   Slot(Number(configs.treasury.expiration) / 1000 - 1),
+    // );
+    const start = Date.now();
+    const maxHorizon = blaze.provider.network === NetworkId.Testnet ? 6 : 36;
+    const upperBoundUnix = Math.min(
+      Number(configs.treasury.expiration),
+      start + maxHorizon * 60 * 60 * 1000,
+    );
+    const upperBoundSlot = blaze.provider.unixToSlot(upperBoundUnix) - 30;
+    tx.setValidUntil(Slot(upperBoundSlot));
+  }
 
   if (metadata) {
     const auxData = new AuxiliaryData();
