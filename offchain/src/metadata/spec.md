@@ -187,14 +187,13 @@ A disburse transaction with will have the following metadata attached to it:
     "label": "Human Readable Title",
     "description": "long-form markdown annotated description",
     "justification": "long-form markdown justification",
-    "destination": 
-      {
-        "label": "Coinbase",
-        "details": {
-          "anchorUrl": "ipfs://...",
-          "anchorDataHash": "..."
-        }
-      },
+    "destination": {
+      "label": "Coinbase",
+      "details": {
+        "anchorUrl": "ipfs://...",
+        "anchorDataHash": "..."
+      }
+    },
     "estimatedReturn": 1234
   }
 }
