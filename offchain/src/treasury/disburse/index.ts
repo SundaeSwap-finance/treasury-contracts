@@ -10,6 +10,7 @@ import {
 } from "@blaze-cardano/core";
 import * as Data from "@blaze-cardano/data";
 import {
+  makeValue,
   TxBuilder,
   type Blaze,
   type Provider,
@@ -31,8 +32,7 @@ export interface IDisburseArgs<P extends Provider, W extends Wallet> {
   configsOrScripts: TConfigsOrScripts;
   blaze: Blaze<P, W>;
   input: TransactionUnspentOutput;
-  recipient: Address; // todo: make array
-  amount: Value;
+  recipients: { address: Address; amount: Value }[];
   datum?: Datum;
   signers: Ed25519KeyHashHex[];
   after?: boolean;
@@ -43,8 +43,7 @@ export async function disburse<P extends Provider, W extends Wallet>({
   configsOrScripts,
   blaze,
   input,
-  recipient,
-  amount,
+  recipients,
   datum = undefined,
   signers,
   after = false,
@@ -90,24 +89,31 @@ export async function disburse<P extends Provider, W extends Wallet>({
     tx = tx.addRequiredSigner(signer);
   }
 
+  for (const { address, amount } of recipients) {
+    if (datum) {
+      tx.lockAssets(address, amount, datum);
+    } else {
+      tx.payAssets(address, amount);
+    }
+  }
+
+  const disbursedAmount = recipients.reduce(
+    (acc, r) => Tx.Value.merge(acc, r.amount),
+    makeValue(0n),
+  );
+
   tx = tx.addInput(
     input,
     Data.serialize(TreasurySpendRedeemer, {
       Disburse: {
-        amount: coreValueToContractsValue(amount),
+        amount: coreValueToContractsValue(disbursedAmount),
       },
     }),
   );
 
-  if (datum) {
-    tx.lockAssets(recipient, amount, datum);
-  } else {
-    tx.payAssets(recipient, amount);
-  }
-
   const remainder = Tx.Value.merge(
     input.output().amount(),
-    Tx.Value.negate(amount),
+    Tx.Value.negate(disbursedAmount),
   );
   if (!Tx.Value.empty(remainder)) {
     tx.lockAssets(treasuryScriptAddress, remainder, Data.Void());

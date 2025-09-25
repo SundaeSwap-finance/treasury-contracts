@@ -85,9 +85,6 @@ export async function disburse(
   );
   const inputUtxo = await selectUtxo(utxos);
 
-  // todo: check if this is needed
-  const datum = undefined;
-
   const signers = [
     // int admin
     Ed25519KeyHashHex(
@@ -143,8 +140,7 @@ export async function disburse(
 
   const { destinations, recipients } = await getDestinations();
 
-  // For now, only support one destination
-  metadataBody.destination = destinations[0];
+  metadataBody.destination = destinations;
 
   const txMetadata = await getTransactionMetadata(
     configs.treasury.registry_token,
@@ -159,14 +155,11 @@ export async function disburse(
       },
       blaze: blazeInstance,
       input: inputUtxo,
-      recipient: recipients[0].address, // todo: make array
-      amount: recipients[0].amount, // todo: make array
-      datum,
+      recipients: recipients,
       signers,
       metadata: txMetadata,
     })
-  )
-  // .complete();
+  ).complete();
 
   await transactionDialog(blazeInstance.provider.network, tx.toCbor(), false);
 }
