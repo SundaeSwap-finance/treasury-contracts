@@ -65,6 +65,18 @@ async function getDestinations(): Promise<{
   }
 
   return { destinations, recipients };
+} 
+
+export async function getValidInterval(): Promise<{ from: number; to: number } | undefined> {
+
+  let range;
+
+  const details = await getOptional(
+    "Do you want to choose transaction validity interval for this transaction? (optional)",
+    undefined,
+    getAnchor,
+  );
+  return range;
 }
 
 export async function disburse(

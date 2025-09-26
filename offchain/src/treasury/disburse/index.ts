@@ -37,7 +37,8 @@ export interface IDisburseArgs<P extends Provider, W extends Wallet> {
   recipients: { address: Address; amount: Value }[];
   datum?: Datum;
   signers: Ed25519KeyHashHex[];
-  after?: boolean;
+  validFromSlot?: number;
+  validUntilSlot?: number;
   metadata?: ITransactionMetadata<IDisburse>;
 }
 
@@ -48,7 +49,8 @@ export async function disburse<P extends Provider, W extends Wallet>({
   recipients,
   datum = undefined,
   signers,
-  after = false,
+  validFromSlot,
+  validUntilSlot,
   metadata,
 }: IDisburseArgs<P, W>): Promise<TxBuilder> {
   console.log("Disburse transaction started");
@@ -72,16 +74,16 @@ export async function disburse<P extends Provider, W extends Wallet>({
     tx.provideScript(scripts.treasuryScript.script.Script);
   }
 
-  // todo: probably clean this up, and have it match fund's way of handling validity
-  if (after) {
-    tx = tx.setValidFrom(
-      Slot(Number(configs.treasury.expiration) / 1000 + 1),
-    );
+  if (validFromSlot) {
+    tx.setValidFrom(Slot(validFromSlot));
+  }
+
+  if (validUntilSlot) {
+    tx.setValidUntil(Slot(validUntilSlot));
   } else {
-    // tx = tx.setValidUntil(
-    //   Slot(Number(configs.treasury.expiration) / 1000 - 1),
-    // );
-    const start = Date.now();
+    const start = validFromSlot
+      ? blaze.provider.slotToUnix(validFromSlot)
+      : Date.now();
     const maxHorizon = blaze.provider.network === NetworkId.Testnet ? 6 : 36;
     const upperBoundUnix = Math.min(
       Number(configs.treasury.expiration),
