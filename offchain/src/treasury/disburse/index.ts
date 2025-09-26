@@ -74,6 +74,8 @@ export async function disburse<P extends Provider, W extends Wallet>({
     tx.provideScript(scripts.treasuryScript.script.Script);
   }
 
+  // todo: double check if the one shot script needs to be provided
+
   if (validFromSlot) {
     tx.setValidFrom(Slot(validFromSlot));
   }

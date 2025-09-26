@@ -67,6 +67,7 @@ async function getDestinations(): Promise<{
   return { destinations, recipients };
 } 
 
+// todo: let the user give a validity start or end
 export async function getValidInterval(): Promise<{ from: number; to: number } | undefined> {
 
   let range;
