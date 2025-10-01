@@ -8,6 +8,7 @@ import { decodeFirst } from "cbor";
 
 import { IPause, IResume } from "./types/adjudicate.js";
 import { IComplete } from "./types/complete.js";
+import { IDisburse } from "./types/disburse.js";
 import { ETransactionEvent } from "./types/events.js";
 import { IFund } from "./types/fund.js";
 import { IInitialize } from "./types/initialize-reorganize.js";
@@ -30,7 +31,8 @@ export type TMetadataBody =
   | IInitialize
   | IWithdraw
   | IComplete
-  | INewInstance;
+  | INewInstance
+  | IDisburse;
 
 export interface ITransactionMetadata<B = TMetadataBody> {
   "@context": string;

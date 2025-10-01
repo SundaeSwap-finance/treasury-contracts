@@ -1,15 +1,12 @@
 import {
   Address,
   Ed25519KeyHashHex,
-  Ed25519PublicKey,
-  Ed25519PublicKeyHex,
   TransactionId,
-  TransactionInput,
+  TransactionInput
 } from "@blaze-cardano/core";
 import { Blaze, makeValue, Provider, Wallet } from "@blaze-cardano/sdk";
 import { getBlazeInstance, getConfigs, transactionDialog } from "cli/shared";
 import { Treasury } from "src";
-import * as Data from "@blaze-cardano/data";
 
 export async function disburse(
   blazeInstance: Blaze<Provider, Wallet> | undefined = undefined,
