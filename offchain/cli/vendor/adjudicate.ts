@@ -11,6 +11,7 @@ import {
   selectUtxo,
   transactionDialog,
 } from "cli/shared";
+import { Ed25519KeyHashHex } from "@blaze-cardano/core";
 import { toPermission, Vendor } from "src";
 import { VendorDatum } from "src/generated-types/contracts";
 import {
@@ -115,6 +116,10 @@ async function adjudicate(
     configs.treasury.registry_token,
     metadataBody,
   );
+
+  if (signers.indexOf(Ed25519KeyHashHex(txMetadata.txAuthor)) < 0) {
+    signers.push(Ed25519KeyHashHex(txMetadata.txAuthor));
+  }
 
   const tx = await (
     await Vendor.adjudicate({

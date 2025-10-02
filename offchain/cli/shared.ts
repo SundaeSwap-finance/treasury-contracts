@@ -67,27 +67,25 @@ export interface IOnDiskInstance {
   metadata?: ITransactionMetadata<INewInstance>;
 }
 
-async function getSignersFromList(
+async function getConditionsFromList(
   permissions: TPermissionMetadata[],
   min: number,
-): Promise<Ed25519KeyHashHex[]> {
-  const choices = await Promise.all(
-    permissions.map(async (script) => ({
-      name: script.label || JSON.stringify(script),
-      value: await getSigners(script),
-    })),
-  );
+): Promise<TPermissionMetadata[]> {
+  const choices = permissions.map((script) => ({
+    name: script.label || JSON.stringify(script),
+    value: script,
+  }));
   const selections = await checkbox({
-    message: "Select the keys that will be signing the transaction",
+    message: "Select the conditions that will be signing the transaction",
     choices,
     validate: (selected) => {
       if (selected.length < min) {
-        return "You must select at least one key";
+        return `You must select at least ${min} conditions`;
       }
       return true;
     },
   });
-  return selections.flat();
+  return selections;
 }
 
 export async function getSigners(
@@ -101,29 +99,30 @@ export async function getSigners(
     }
 
     if ("atLeast" in permission) {
-      signers.push(
-        ...(await getSignersFromList(
-          permission.atLeast.scripts,
-          Number(permission.atLeast.required),
-        )),
+      const scripts = await getConditionsFromList(
+        permission.atLeast.scripts,
+        Number(permission.atLeast.required),
       );
+      for (const script of scripts) {
+        signers.push(...(await getSigners(script)));
+      }
     }
 
     if ("anyOf" in permission) {
-      signers.push(...(await getSignersFromList(permission.anyOf.scripts, 1)));
+      const scripts = await getConditionsFromList(permission.anyOf.scripts, 1);
+      for (const script of scripts) {
+        signers.push(...(await getSigners(script)));
+      }
     }
 
     if ("allOf" in permission) {
-      const allSigners = await Promise.all(
-        permission.allOf.scripts.map(
-          async (script) => await getSigners(script),
-        ),
-      );
-      signers.push(...allSigners.flat());
+      for (const script of permission.allOf.scripts) {
+        signers.push(...(await getSigners(script)));
+      }
     }
   }
 
-  return signers.filter((v, i) => signers.indexOf(v) === i);
+  return signers;
 }
 
 export async function inputOrEnv(opts: {
@@ -352,13 +351,11 @@ export async function getPermission(
   }
 }
 
-export function isAddressOrHex(
+export function isAddress(
   str: string,
   expectedType: CredentialType,
 ): true | string {
-  if (/[0-9a-fA-F]{56}/.test(str)) {
-    return true;
-  } else if (str.startsWith("addr") || str.startsWith("stake")) {
+  if (str.startsWith("addr") || str.startsWith("stake")) {
     try {
       const addr = Address.fromBech32(str);
       if (str.startsWith("addr")) {
@@ -378,6 +375,17 @@ export function isAddressOrHex(
     }
   } else {
     return "Unrecognized format";
+  }
+}
+
+export function isAddressOrHex(
+  str: string,
+  expectedType: CredentialType,
+): true | string {
+  if (/[0-9a-fA-F]{56}/.test(str)) {
+    return true;
+  } else {
+    return isAddress(str, expectedType);
   }
 }
 
@@ -608,6 +616,7 @@ export async function transactionDialog(
         case "back":
           return;
         case "expand":
+          console.log("Transaction cbor: ", txCbor);
           expanded = true;
           break;
         default:

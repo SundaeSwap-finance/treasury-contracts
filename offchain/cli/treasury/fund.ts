@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import { Value } from "@blaze-cardano/core";
+import { Address, CredentialType, Value } from "@blaze-cardano/core";
 import { Blaze, makeValue, Provider, Wallet } from "@blaze-cardano/sdk";
-import { input, select } from "@inquirer/prompts";
+import { input, select, confirm } from "@inquirer/prompts";
 import { IFund, IFundMilestone } from "src/metadata/types/fund";
 import {
   toMultisig,
@@ -9,7 +9,11 @@ import {
   TPermissionMetadata,
 } from "src/metadata/types/permission";
 import { Treasury } from "../../src";
-import { loadTreasuryScript } from "../../src/shared";
+import {
+  coreAddressToContractsAddress,
+  loadAllowlistScript,
+  loadTreasuryScript,
+} from "../../src/shared";
 import {
   getActualPermission,
   getAnchor,
@@ -20,6 +24,7 @@ import {
   getPermission,
   getSigners,
   getTransactionMetadata,
+  isAddress,
   maybeInput,
   selectUtxo,
   transactionDialog,
@@ -106,9 +111,51 @@ export async function fund(
     blazeInstance = await getBlazeInstance();
   }
   const { configs, scripts, metadata } = await getConfigs(blazeInstance);
-  const vendorPermissions: TPermissionMetadata = (await getPermission(
+  let vendorPermissions: TPermissionMetadata = (await getPermission(
     "Which multisig should be able to use the funds?",
   )) as TPermissionMetadata;
+
+  if (
+    await confirm({
+      message: "Would you like to limit which addresses can receive funds?",
+    })
+  ) {
+    const addresses = [];
+    while (true) {
+      const nextAddress = await input({
+        message: "Enter an address, empty to finish",
+        validate: (s) => s == "" || isAddress(s, CredentialType.KeyHash),
+      });
+      if (!nextAddress) {
+        if (addresses.length > 0) {
+          break;
+        } else {
+          console.log("No addresses provided");
+        }
+      }
+      addresses.push(
+        coreAddressToContractsAddress(Address.fromBech32(nextAddress)),
+      );
+    }
+    const allowlist = loadAllowlistScript(blazeInstance.provider.network, {
+      registry_token: configs.treasury.registry_token,
+      addresses,
+    });
+
+    vendorPermissions = {
+      allOf: {
+        scripts: [
+          vendorPermissions,
+          {
+            script: {
+              scriptHash: allowlist.script.Script.hash(),
+            },
+          },
+        ],
+      },
+    };
+  }
+
   const vendor = toMultisig(vendorPermissions);
 
   const metadataBody = {
