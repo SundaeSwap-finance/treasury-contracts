@@ -1,6 +1,5 @@
 import {
   Address,
-  AssetId,
   Ed25519KeyHashHex,
   RewardAccount,
   Slot,
@@ -10,12 +9,12 @@ import { Emulator } from "@blaze-cardano/emulator";
 import { Core, makeValue } from "@blaze-cardano/sdk";
 import { beforeEach, describe, test } from "bun:test";
 import { ETransactionEvent } from "src";
+import { modify } from "src/vendor";
 import {
   AllowlistConfig,
   AllowlistVendorAllowlistVendorWithdraw,
   MultisigScript,
   VendorDatum,
-  VendorVendorSpend,
 } from "../../src/generated-types/contracts";
 import {
   coreAddressToContractsAddress,
@@ -28,19 +27,14 @@ import {
 } from "../../src/shared";
 import { withdraw } from "../../src/vendor/withdraw";
 import {
-  fund_key,
-  Funder,
   Modifier,
   modify_key,
-  registryToken,
   sampleTreasuryConfig,
   sampleVendorConfig,
   setupEmulator,
   Vendor,
   vendor_key,
 } from "../utilities";
-import { modify } from "src/vendor";
-import { fund } from "src/treasury";
 
 describe("With a vendor with the allowlist script", () => {
   const amount = 340_000_000_000_000n;
@@ -57,13 +51,10 @@ describe("With a vendor with the allowlist script", () => {
   let fourthDatum: VendorDatum;
   let fifthScriptInput: Core.TransactionUnspentOutput;
   let fifthDatum: VendorDatum;
-  let refInput: Core.TransactionUnspentOutput;
-  let registryInput: Core.TransactionUnspentOutput;
   let vendor: MultisigScript;
   let vendorSigner: Ed25519KeyHashHex;
   let modifySigner: Ed25519KeyHashHex;
   let rewardAccount: RewardAccount;
-  let vendorScript: VendorVendorSpend;
   let vendorScriptAddress: Address;
   let configsOrScripts: TConfigsOrScripts;
   let allowlist: ICompiledScript<
@@ -89,7 +80,6 @@ describe("With a vendor with the allowlist script", () => {
       configs: { treasury: treasuryConfig, vendor: vendorConfig, trace: true },
     };
     rewardAccount = treasuryScriptManifest.rewardAccount!;
-    vendorScript = vendorScriptManifest.script;
     vendorScriptAddress = vendorScriptManifest.scriptAddress;
 
     emulator.accounts.set(rewardAccount, amount);
@@ -274,42 +264,6 @@ describe("With a vendor with the allowlist script", () => {
         Core.Datum.newInlineData(Data.serialize(VendorDatum, fifthDatum)),
       );
     emulator.addUtxo(fifthScriptInput);
-    const [registryPolicy, registryName] = registryToken();
-    registryInput = emulator.utxos().find((u) =>
-      u
-        .output()
-        .amount()
-        .multiasset()
-        ?.get(AssetId(registryPolicy + registryName)),
-    )!;
-    refInput = emulator.lookupScript(vendorScript.Script);
-  });
-
-  describe("the oversight committee", () => {
-    test("can fund a new project", async () => {
-      const tx = await emulator.as(Funder, async (blaze) => {
-        return fund({
-          configsOrScripts,
-          blaze,
-          input: treasuryInput,
-          vendor,
-          schedule: [
-            {
-              date: new Date(Number(emulator.slotToUnix(Slot(10)))),
-              amount: makeValue(10_000_000_000n),
-            },
-          ],
-          signers: [
-            Ed25519KeyHashHex(await fund_key(emulator)),
-            Ed25519KeyHashHex(await vendor_key(emulator)),
-          ],
-          additionalScripts: [
-            { script: allowlist.script.Script, redeemer: Data.Void() },
-          ],
-        });
-      });
-      await emulator.expectValidMultisignedTransaction([Funder, Vendor], tx);
-    });
   });
 
   describe("the oversight committee and vendor", () => {
