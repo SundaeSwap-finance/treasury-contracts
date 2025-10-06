@@ -19,27 +19,27 @@ import {
 import { checkbox, input, select } from "@inquirer/prompts";
 import clipboard from "clipboardy";
 import fetch from "node-fetch";
-import { ETransactionEvent } from "src";
+import { ETransactionEvent } from "../src";
 import {
   OneshotOneshotMint,
   TreasuryConfiguration,
   TreasuryTreasurySpend,
   VendorConfiguration,
   VendorVendorSpend,
-} from "src/generated-types/contracts";
-import { IOutput } from "src/metadata/types/initialize-reorganize";
-import { INewInstance } from "src/metadata/types/new-instance";
+} from "../src/generated-types/contracts";
+import { IOutput } from "../src/metadata/types/initialize-reorganize";
+import { INewInstance } from "../src/metadata/types/new-instance";
 import {
   toMultisig,
   TPermissionMetadata,
   TPermissionName,
-} from "src/metadata/types/permission";
+} from "../src/metadata/types/permission";
 import {
   constructScriptsFromBytes,
   ICompiledScripts,
   IConfigs,
   loadConfigsAndScripts,
-} from "src/shared";
+} from "../src/shared";
 import {
   type IAnchor,
   type ITransactionMetadata,
@@ -90,12 +90,12 @@ async function getConditionsFromList(
 
 export async function getSigners(
   ...permissions: TPermissionMetadata[]
-): Promise<Ed25519KeyHashHex[]> {
-  const signers: Ed25519KeyHashHex[] = [];
+): Promise<Set<Ed25519KeyHashHex>> {
+  let signers: Set<Ed25519KeyHashHex> = new Set();
 
   for (const permission of permissions) {
     if ("signature" in permission) {
-      signers.push(Ed25519KeyHashHex(permission.signature.keyHash));
+      signers.add(Ed25519KeyHashHex(permission.signature.keyHash));
     }
 
     if ("atLeast" in permission) {
@@ -104,20 +104,20 @@ export async function getSigners(
         Number(permission.atLeast.required),
       );
       for (const script of scripts) {
-        signers.push(...(await getSigners(script)));
+        signers = signers.union<Ed25519KeyHashHex>(await getSigners(script));
       }
     }
 
     if ("anyOf" in permission) {
       const scripts = await getConditionsFromList(permission.anyOf.scripts, 1);
       for (const script of scripts) {
-        signers.push(...(await getSigners(script)));
+        signers = signers.union<Ed25519KeyHashHex>(await getSigners(script));
       }
     }
 
     if ("allOf" in permission) {
       for (const script of permission.allOf.scripts) {
-        signers.push(...(await getSigners(script)));
+        signers = signers.union<Ed25519KeyHashHex>(await getSigners(script));
       }
     }
   }

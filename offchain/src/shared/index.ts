@@ -70,6 +70,9 @@ export function loadConfigsAndScripts<P extends Provider, W extends Wallet>(
   scripts: ICompiledScripts;
 } {
   if (configsOrScripts.configs && !configsOrScripts.scripts) {
+    /**
+     * @TODO This *might* produce mismatching scripts.
+     */
     configsOrScripts.scripts = loadScripts(
       blaze.provider.network,
       configsOrScripts.configs.treasury,

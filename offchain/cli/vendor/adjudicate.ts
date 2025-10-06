@@ -1,6 +1,8 @@
 import * as Data from "@blaze-cardano/data";
 import { Blaze, Provider, Wallet } from "@blaze-cardano/sdk";
 import { checkbox, input } from "@inquirer/prompts";
+import { Ed25519KeyHashHex } from "@blaze-cardano/core";
+
 import {
   getActualPermission,
   getBlazeInstance,
@@ -10,15 +12,14 @@ import {
   maybeInput,
   selectUtxo,
   transactionDialog,
-} from "cli/shared";
-import { Ed25519KeyHashHex } from "@blaze-cardano/core";
-import { toPermission, Vendor } from "src";
-import { VendorDatum } from "src/generated-types/contracts";
+} from "../shared";
+import { toPermission, Vendor } from "../../src";
+import { VendorDatum } from "../../src/generated-types/contracts";
 import {
   IAdjudicatedMilestone,
   IPause,
   IResume,
-} from "src/metadata/types/adjudicate";
+} from "../../src/metadata/types/adjudicate";
 
 async function adjudicate(
   pause: boolean,
@@ -117,9 +118,7 @@ async function adjudicate(
     metadataBody,
   );
 
-  if (signers.indexOf(Ed25519KeyHashHex(txMetadata.txAuthor)) < 0) {
-    signers.push(Ed25519KeyHashHex(txMetadata.txAuthor));
-  }
+  signers.add(Ed25519KeyHashHex(txMetadata.txAuthor));
 
   const tx = await (
     await Vendor.adjudicate({
@@ -128,7 +127,7 @@ async function adjudicate(
       now: new Date(now),
       input: utxo,
       statuses,
-      signers,
+      signers: [...signers],
       metadata: txMetadata,
     })
   ).complete();

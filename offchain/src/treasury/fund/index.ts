@@ -67,7 +67,7 @@ export async function fund<P extends Provider, W extends Wallet>({
   );
 
   const upperBoundSlot = blaze.provider.unixToSlot(upperBoundUnix) - 30;
-  let tx = blaze
+  const tx = blaze
     .newTransaction()
     .setValidUntil(Slot(upperBoundSlot))
     .addReferenceInput(registryInput);
@@ -75,13 +75,17 @@ export async function fund<P extends Provider, W extends Wallet>({
   if (!!additionalScripts) {
     for (const { script, redeemer } of additionalScripts) {
       const refInput = await blaze.provider.resolveScriptRef(script);
-      tx = tx
-        .addReferenceInput(refInput!)
-        .addWithdrawal(
-          rewardAccountFromScript(script, blaze.provider.network),
-          0n,
-          redeemer,
-        );
+      if (refInput) {
+        tx.addReferenceInput(refInput)
+      } else {
+        tx.provideScript(script);
+      }
+
+      tx.addWithdrawal(
+        rewardAccountFromScript(script, blaze.provider.network),
+        0n,
+        redeemer,
+      );
     }
   }
 
@@ -99,11 +103,11 @@ export async function fund<P extends Provider, W extends Wallet>({
   if (metadata) {
     const auxData = new AuxiliaryData();
     auxData.setMetadata(toTxMetadata(metadata));
-    tx = tx.setAuxiliaryData(auxData);
+    tx.setAuxiliaryData(auxData);
   }
 
   for (const signer of signers) {
-    tx = tx.addRequiredSigner(signer);
+    tx.addRequiredSigner(signer);
   }
 
   const totalPayout = schedule.reduce(
@@ -111,7 +115,7 @@ export async function fund<P extends Provider, W extends Wallet>({
     makeValue(0n),
   );
 
-  tx = tx.addInput(
+  tx.addInput(
     input,
     Data.serialize(TreasurySpendRedeemer, {
       Fund: {

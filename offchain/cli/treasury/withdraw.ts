@@ -1,7 +1,7 @@
 import { Blaze, Provider, Wallet } from "@blaze-cardano/sdk";
 import { input } from "@inquirer/prompts";
-import { ETransactionEvent, Treasury } from "src";
-import { IInitialize } from "src/metadata/types/initialize-reorganize";
+import { ETransactionEvent, Treasury } from "../../src";
+import { IInitialize } from "../../src/metadata/types/initialize-reorganize";
 import {
   getBlazeInstance,
   getConfigs,
