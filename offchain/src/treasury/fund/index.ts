@@ -76,16 +76,16 @@ export async function fund<P extends Provider, W extends Wallet>({
     for (const { script, redeemer } of additionalScripts) {
       const refInput = await blaze.provider.resolveScriptRef(script);
       if (refInput) {
-        tx.addReferenceInput(refInput)
+        tx.addReferenceInput(refInput).addWithdrawal(
+          rewardAccountFromScript(script, blaze.provider.network),
+          0n,
+          redeemer,
+        );
       } else {
-        tx.provideScript(script);
+        throw new Error(
+          "Could not find one of the additional scripts provided on-chain. Please publish the script and try again.",
+        );
       }
-
-      tx.addWithdrawal(
-        rewardAccountFromScript(script, blaze.provider.network),
-        0n,
-        redeemer,
-      );
     }
   }
 

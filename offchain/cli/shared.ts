@@ -27,6 +27,10 @@ import {
   VendorConfiguration,
   VendorVendorSpend,
 } from "../src/generated-types/contracts";
+import {
+  type IAnchor,
+  type ITransactionMetadata,
+} from "../src/metadata/shared";
 import { IOutput } from "../src/metadata/types/initialize-reorganize";
 import { INewInstance } from "../src/metadata/types/new-instance";
 import {
@@ -40,10 +44,6 @@ import {
   IConfigs,
   loadConfigsAndScripts,
 } from "../src/shared";
-import {
-  type IAnchor,
-  type ITransactionMetadata,
-} from "../src/metadata/shared";
 import { CustomProvider } from "./custom";
 
 const BLOCKFROST_VAR = "BLOCKFROST_KEY";
@@ -559,11 +559,13 @@ export async function transactionDialog(
   network: Core.NetworkId,
   txCbor: string,
   expanded: boolean,
+  allowSubmitToApi: boolean = true,
 ): Promise<void> {
-  const choices = [
-    { name: "Copy tx cbor", value: "copy" },
-    { name: "Submit to API", value: "submit" },
-  ];
+  const choices = [{ name: "Copy tx cbor", value: "copy" }];
+  if (allowSubmitToApi) {
+    choices.push({ name: "Submit to API", value: "submit" });
+  }
+
   if (expanded) {
     console.log("Transaction cbor: ", txCbor);
   } else {

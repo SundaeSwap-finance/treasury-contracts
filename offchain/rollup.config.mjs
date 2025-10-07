@@ -11,7 +11,7 @@ export default {
   plugins: [
     tsConfigPaths(),
     esbuild({
-      target: 'node20',
+      target: 'nodenext',
       tsconfig: 'tsconfig.json',
       loaders: { '.ts': 'ts', '.tsx': 'tsx' }
     }),

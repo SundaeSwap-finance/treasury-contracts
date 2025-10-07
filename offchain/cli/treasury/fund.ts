@@ -1,14 +1,15 @@
 import { Address, CredentialType, Script, Value } from "@blaze-cardano/core";
-import { Blaze, makeValue, Provider, Wallet } from "@blaze-cardano/sdk";
+import { Blaze, Core, makeValue, Provider, Wallet } from "@blaze-cardano/sdk";
 import { confirm, input, select } from "@inquirer/prompts";
 
+import { Void } from "@blaze-cardano/data";
+import { Treasury } from "../../src";
 import { IFund, IFundMilestone } from "../../src/metadata/types/fund";
 import {
   toMultisig,
   toPermission,
   TPermissionMetadata,
 } from "../../src/metadata/types/permission";
-import { Treasury } from "../../src";
 import {
   coreAddressToContractsAddress,
   loadAllowlistScript,
@@ -29,7 +30,6 @@ import {
   selectUtxo,
   transactionDialog,
 } from "../shared";
-import { Void } from "@blaze-cardano/data";
 
 async function getMilestones(): Promise<{
   schedule: { date: Date; amount: Value }[];
@@ -160,6 +160,32 @@ export async function fund(
     };
   }
 
+  if (
+    allowListScript &&
+    (await confirm({
+      message:
+        "Do you want to publish the script for these addresses on-chain?",
+    }))
+  ) {
+    const tx = await blazeInstance
+      .newTransaction()
+      .deployScript(allowListScript)
+      .addRegisterStake(
+        Core.Credential.fromCore({
+          hash: allowListScript.hash(),
+          type: Core.CredentialType.ScriptHash,
+        }),
+      )
+      .complete();
+
+    await transactionDialog(
+      blazeInstance.provider.network,
+      tx.toCbor(),
+      false,
+      false,
+    );
+  }
+
   const vendor = toMultisig(vendorPermissions);
 
   const metadataBody = {
@@ -205,10 +231,10 @@ export async function fund(
 
   const {
     scripts: {
-      treasuryScript: { script, scriptAddress: treasuryScriptAddress },
+      treasuryScript: { scriptAddress: treasuryScriptAddress },
     },
   } = loadConfigsAndScripts(blazeInstance, { configs, scripts });
-  
+
   const utxos = await blazeInstance.provider.getUnspentOutputs(
     treasuryScriptAddress,
   );
@@ -233,12 +259,16 @@ export async function fund(
     schedule,
     signers: [...signers.values()],
     metadata: txMetadata,
-    additionalScripts: allowListScript ? [
-      { script: allowListScript, redeemer: Void() }
-    ] : undefined
+    additionalScripts: allowListScript
+      ? [{ script: allowListScript, redeemer: Void() }]
+      : undefined,
   });
 
   const complete = await tx.complete();
 
-  await transactionDialog(blazeInstance.provider.network, complete.toCbor(), false);
+  await transactionDialog(
+    blazeInstance.provider.network,
+    complete.toCbor(),
+    false,
+  );
 }
