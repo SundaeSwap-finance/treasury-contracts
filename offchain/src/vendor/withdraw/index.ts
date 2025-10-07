@@ -3,6 +3,7 @@ import {
   AssetId,
   AuxiliaryData,
   Ed25519KeyHashHex,
+  Hash28ByteBase16,
   PlutusData,
   Script,
   toHex,
@@ -11,8 +12,8 @@ import {
 } from "@blaze-cardano/core";
 import * as Data from "@blaze-cardano/data";
 import {
-  TxBuilder,
   Value as SdkValue,
+  TxBuilder,
   type Blaze,
   type Provider,
   type Wallet,
@@ -40,7 +41,10 @@ export interface IWithdrawArgs<P extends Provider, W extends Wallet> {
   destination?: Address;
   destinations?: { address: Address; amount: Value }[];
   signers: Ed25519KeyHashHex[];
-  additionalScripts?: { script: Script; redeemer: PlutusData }[];
+  additionalScripts?: {
+    script: Script | Hash28ByteBase16;
+    redeemer: PlutusData;
+  }[];
   metadata?: ITransactionMetadata<IWithdraw | IComplete>;
 }
 
@@ -69,13 +73,20 @@ export async function withdraw<P extends Provider, W extends Wallet>({
   if (!!additionalScripts) {
     for (const { script, redeemer } of additionalScripts) {
       const refInput = await blaze.provider.resolveScriptRef(script);
-      tx = tx
-        .addReferenceInput(refInput!)
-        .addWithdrawal(
-          rewardAccountFromScript(script, blaze.provider.network),
+      if (refInput) {
+        tx.addReferenceInput(refInput!).addWithdrawal(
+          rewardAccountFromScript(
+            refInput.output().scriptRef()!,
+            blaze.provider.network,
+          ),
           0n,
           redeemer,
         );
+      } else {
+        throw new Error(
+          `Could not find one of the additional scripts provided on-chain: ${script instanceof Script ? script.hash() : script}. Please publish the script and try again.`,
+        );
+      }
     }
   }
 

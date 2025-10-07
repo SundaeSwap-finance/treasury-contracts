@@ -2,7 +2,7 @@ import { configs } from "@sundaeswap/eslint-config";
 import globals from "globals";
 
 /** @type {import("eslint").Linter.Config[]} */
-export default [
+const config = [
   ...configs,
   {
     rules: {
@@ -22,3 +22,5 @@ export default [
     },
   },
 ];
+
+export default config;

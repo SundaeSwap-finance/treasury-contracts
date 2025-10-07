@@ -1,7 +1,18 @@
-import { Address, Ed25519KeyHashHex, TransactionUnspentOutput } from "@blaze-cardano/core";
+import {
+  Address,
+  Ed25519KeyHashHex,
+  TransactionUnspentOutput,
+} from "@blaze-cardano/core";
 import * as Data from "@blaze-cardano/data";
 import { Blaze, Provider, Wallet } from "@blaze-cardano/sdk";
 import { input } from "@inquirer/prompts";
+import { Vendor } from "../../src";
+import { VendorDatum } from "../../src/generated-types/contracts";
+import { toPermission } from "../../src/metadata/types/permission";
+import {
+  IWithdraw,
+  IWithdrawMilestone,
+} from "../../src/metadata/types/withdraw";
 import {
   getBlazeInstance,
   getConfigs,
@@ -10,10 +21,6 @@ import {
   selectUtxos,
   transactionDialog,
 } from "../shared";
-import { Vendor } from "../../src";
-import { VendorDatum } from "../../src/generated-types/contracts";
-import { toPermission } from "../../src/metadata/types/permission";
-import { IWithdraw, IWithdrawMilestone } from "../../src/metadata/types/withdraw";
 
 async function getFinishedMilestones(
   vendorInputs: TransactionUnspentOutput[],

@@ -62,10 +62,6 @@
     "@blaze-cardano/emulator": "^0.3.28",
     "@blaze-cardano/vm": "^0.2.1",
     "@emurgo/cardano-message-signing-nodejs": "^1.1.0",
-    "@rollup/plugin-alias": "^5.1.1",
-    "@rollup/plugin-commonjs": "^28.0.6",
-    "@rollup/plugin-json": "^6.1.0",
-    "@rollup/plugin-node-resolve": "^16.0.2",
     "@sundaeswap/babel-preset": "^2.0.15",
     "@sundaeswap/eslint-config": "^2.0.15",
     "@types/bun": "latest",
@@ -75,9 +71,6 @@
     "globals": "^16.2.0",
     "husky": "^9.1.7",
     "lint-staged": "^16.1.0",
-    "rollup": "^4.52.4",
-    "rollup-plugin-esbuild": "^6.2.1",
-    "rollup-plugin-tsconfig-paths": "^1.5.2",
     "standard-version": "^9.5.0"
   },
   "dependencies": {

@@ -2,6 +2,7 @@ import {
   AssetId,
   AuxiliaryData,
   Ed25519KeyHashHex,
+  Hash28ByteBase16,
   NetworkId,
   PlutusData,
   Script,
@@ -41,7 +42,10 @@ export interface IFundArgs<P extends Provider, W extends Wallet> {
   vendor: MultisigScript;
   schedule: { date: Date; amount: Value }[];
   signers: Ed25519KeyHashHex[];
-  additionalScripts?: { script: Script; redeemer: PlutusData }[];
+  additionalScripts?: {
+    script: Script | Hash28ByteBase16;
+    redeemer: PlutusData;
+  }[];
   metadata?: ITransactionMetadata<IFund>;
 }
 
@@ -77,13 +81,16 @@ export async function fund<P extends Provider, W extends Wallet>({
       const refInput = await blaze.provider.resolveScriptRef(script);
       if (refInput) {
         tx.addReferenceInput(refInput).addWithdrawal(
-          rewardAccountFromScript(script, blaze.provider.network),
+          rewardAccountFromScript(
+            refInput.output().scriptRef()!,
+            blaze.provider.network,
+          ),
           0n,
           redeemer,
         );
       } else {
         throw new Error(
-          "Could not find one of the additional scripts provided on-chain. Please publish the script and try again.",
+          `Could not find one of the additional scripts provided on-chain: ${script instanceof Script ? script.hash() : script}. Please publish the script and try again.`,
         );
       }
     }

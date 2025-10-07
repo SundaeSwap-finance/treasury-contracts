@@ -872,8 +872,8 @@ export async function configToMetaData(
     TPermissionMetadata | TPermissionName | null
   >,
   seedUtxo: {
-    transactionId: string;
-    outputIndex: bigint;
+    transaction_id: string;
+    output_index: bigint;
   },
 ): Promise<ITransactionMetadata<INewInstance>> {
   return await getTransactionMetadata(instance, {
