@@ -111,62 +111,56 @@ export async function withdraw<P extends Provider, W extends Wallet>({
     tx = tx.addRequiredSigner(signer);
   }
 
-  if (destination) {
-    let totalValue = SdkValue.zero();
-    for (let idx = 0; idx < inputs.length; idx++) {
-      const input = inputs[idx];
-      const oldDatum = input.output().datum()?.asInlineData();
-      if (oldDatum !== undefined) {
-        const datum = Data.parse(VendorDatum, oldDatum);
-        tx = tx.addInput(
-          input,
-          Data.serialize(VendorSpendRedeemer, "Withdraw"),
-        );
-        const newDatum: VendorDatum = {
-          vendor: datum.vendor,
-          payouts: [],
-        };
-        let thisValue = SdkValue.zero();
-        for (const payout of datum.payouts) {
-          if (
-            payout.status === "Active" &&
-            payout.maturation < BigInt(now.valueOf())
-          ) {
-            thisValue = SdkValue.merge(
-              thisValue,
-              contractsValueToCoreValue(payout.value),
-            );
-          } else {
-            newDatum.payouts.push(payout);
-          }
-        }
-        const remainder = SdkValue.merge(
-          input.output().amount(),
-          SdkValue.negate(thisValue),
-        );
-        if (newDatum.payouts.length > 0 || !SdkValue.empty(remainder)) {
-          tx = tx.lockAssets(
-            scriptAddress,
-            remainder,
-            Data.serialize(VendorDatum, newDatum),
-          );
-        }
-        totalValue = SdkValue.merge(totalValue, thisValue);
-      }
-    }
+  let totalValue = SdkValue.zero();
+  for (let idx = 0; idx < inputs.length; idx++) {
+    const input = inputs[idx];
+    const oldDatum = input.output().datum()?.asInlineData();
+    tx.addInput(input, Data.serialize(VendorSpendRedeemer, "Withdraw"));
 
+    if (oldDatum !== undefined) {
+      const datum = Data.parse(VendorDatum, oldDatum);
+      const newDatum: VendorDatum = {
+        vendor: datum.vendor,
+        payouts: [],
+      };
+      let thisValue = SdkValue.zero();
+      for (const payout of datum.payouts) {
+        if (
+          payout.status === "Active" &&
+          payout.maturation < BigInt(now.valueOf())
+        ) {
+          thisValue = SdkValue.merge(
+            thisValue,
+            contractsValueToCoreValue(payout.value),
+          );
+        } else {
+          newDatum.payouts.push(payout);
+        }
+      }
+      const remainder = SdkValue.merge(
+        input.output().amount(),
+        SdkValue.negate(thisValue),
+      );
+      if (newDatum.payouts.length > 0 || !SdkValue.empty(remainder)) {
+        tx = tx.lockAssets(
+          scriptAddress,
+          remainder,
+          Data.serialize(VendorDatum, newDatum),
+        );
+      }
+      totalValue = SdkValue.merge(totalValue, thisValue);
+    }
+  }
+
+  if (destination) {
     tx = tx.payAssets(destination, totalValue);
   } else if (destinations) {
-    for (const input of inputs) {
-      tx = tx.addInput(input, Data.serialize(VendorSpendRedeemer, "Withdraw"));
-    }
     for (const { address, amount } of destinations) {
       tx = tx.payAssets(address, amount);
     }
   } else {
     for (let idx = 0; idx < inputs.length; idx++) {
       const input = inputs[idx];
-      tx.addInput(input, Data.serialize(VendorSpendRedeemer, "Withdraw"));
       tx.addOutput(input.output());
     }
   }
