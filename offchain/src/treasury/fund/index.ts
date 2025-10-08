@@ -37,6 +37,8 @@ import {
 
 export interface IFundArgs<P extends Provider, W extends Wallet> {
   configsOrScripts: TConfigsOrScripts;
+  validFromSlot?: number;
+  validUntilSlot?: number;
   blaze: Blaze<P, W>;
   input: TransactionUnspentOutput;
   vendor: MultisigScript;
@@ -58,23 +60,34 @@ export async function fund<P extends Provider, W extends Wallet>({
   additionalScripts,
   metadata,
   vendor,
+  validFromSlot,
+  validUntilSlot,
 }: IFundArgs<P, W>): Promise<TxBuilder> {
   const { configs, scripts } = loadConfigsAndScripts(blaze, configsOrScripts);
   const registryInput = await blaze.provider.getUnspentOutputByNFT(
     AssetId(configs.treasury.registry_token + toHex(Buffer.from("REGISTRY"))),
   );
 
-  const maxHorizon = blaze.provider.network === NetworkId.Testnet ? 6 : 36;
-  const upperBoundUnix = Math.min(
-    Number(configs.treasury.expiration),
-    new Date().valueOf() + maxHorizon * 60 * 60 * 1000,
-  );
+  const tx = blaze.newTransaction().addReferenceInput(registryInput);
 
-  const upperBoundSlot = blaze.provider.unixToSlot(upperBoundUnix) - 30;
-  const tx = blaze
-    .newTransaction()
-    .setValidUntil(Slot(upperBoundSlot))
-    .addReferenceInput(registryInput);
+  if (validFromSlot) {
+    tx.setValidFrom(Slot(validFromSlot));
+  }
+  if (validUntilSlot) {
+    tx.setValidUntil(Slot(validUntilSlot));
+  } else {
+    const start = validFromSlot
+      ? blaze.provider.slotToUnix(validFromSlot)
+      : Date.now();
+    const maxHorizon = blaze.provider.network === NetworkId.Testnet ? 6 : 36;
+    const upperBoundUnix = Math.min(
+      Number(configs.treasury.expiration),
+      start + maxHorizon * 60 * 60 * 1000,
+    );
+
+    const upperBoundSlot = blaze.provider.unixToSlot(upperBoundUnix) - 30;
+    tx.setValidUntil(Slot(upperBoundSlot));
+  }
 
   if (!!additionalScripts) {
     for (const { script, redeemer } of additionalScripts) {

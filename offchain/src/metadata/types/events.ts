@@ -7,4 +7,5 @@ export enum ETransactionEvent {
   REORGANIZE = "reorganize",
   PUBLISH = "publish",
   WITHDRAW = "withdraw",
+  DISBURSE = "disburse",
 }

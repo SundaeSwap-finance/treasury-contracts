@@ -121,23 +121,28 @@ export async function cancel<P extends Provider, W extends Wallet>({
 }: ICancelArgs<P, W>): Promise<TxBuilder> {
   const { configs, scripts } = loadConfigsAndScripts(blaze, configsOrScripts);
   const { scriptAddress: treasuryScriptAddress } = scripts.treasuryScript;
-  const { script: vendorScript } = scripts.vendorScript;
   const registryInput = await blaze.provider.getUnspentOutputByNFT(
     AssetId(configs.vendor.registry_token + toHex(Buffer.from("REGISTRY"))),
   );
-  const refInput = await blaze.provider.resolveScriptRef(
-    vendorScript.Script.hash(),
-  );
-  if (!refInput)
-    throw new Error("Could not find vendor script reference on-chain");
   const thirty_six_hours = 36 * 60 * 60 * 1000; // 36 hours in milliseconds
   let tx = blaze
     .newTransaction()
     .addReferenceInput(registryInput)
-    .addReferenceInput(refInput)
     .setValidFrom(blaze.provider.unixToSlot(now.valueOf()))
     .setValidUntil(blaze.provider.unixToSlot(now.valueOf() + thirty_six_hours))
     .addInput(input, Data.serialize(VendorSpendRedeemer, "Modify"));
+
+  if (!scripts.vendorScript.scriptRef) {
+    scripts.vendorScript.scriptRef = await blaze.provider.resolveScriptRef(
+      scripts.vendorScript.script.Script,
+    );
+  }
+  if (scripts.vendorScript.scriptRef) {
+    tx.addReferenceInput(scripts.vendorScript.scriptRef);
+  } else {
+    tx.provideScript(scripts.vendorScript.script.Script);
+  }
+
   for (const signer of signers) {
     tx = tx.addRequiredSigner(signer);
   }

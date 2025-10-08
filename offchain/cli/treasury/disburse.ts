@@ -1,26 +1,22 @@
 import {
   Address,
   Ed25519KeyHashHex,
-  Ed25519PublicKey,
-  Ed25519PublicKeyHex,
   TransactionId,
   TransactionInput,
 } from "@blaze-cardano/core";
 import { Blaze, makeValue, Provider, Wallet } from "@blaze-cardano/sdk";
-import { getBlazeInstance, getConfigs, transactionDialog } from "../shared";
-import { Treasury } from "../../src";
-import * as Data from "@blaze-cardano/data";
+import { getBlazeInstance, getConfigs, transactionDialog } from "cli/shared";
+import { Treasury } from "src";
 
 export async function disburse(
-  blazeInstance: Blaze<Provider, Wallet> | undefined = undefined,
+  blaze: Blaze<Provider, Wallet> | undefined = undefined,
 ): Promise<void> {
-  if (!blazeInstance) {
-    blazeInstance = await getBlazeInstance();
+  if (!blaze) {
+    blaze = await getBlazeInstance();
   }
-  const { treasuryConfig, vendorConfig } = await getConfigs();
-
+  const configsOrScripts = await getConfigs(blaze);
   const input = (
-    await blazeInstance.provider.resolveUnspentOutputs([
+    await blaze.provider.resolveUnspentOutputs([
       TransactionInput.fromCore({
         txId: TransactionId(
           "a88413b4c998e832d6a69ec12610af68c48e65517aebf94f2dfbbfaa4974c1ec",
@@ -45,16 +41,16 @@ export async function disburse(
   ];
 
   const tx = await (
-    await Treasury.disburse(
-      { treasury: treasuryConfig, vendor: vendorConfig },
-      blazeInstance,
+    await Treasury.disburse({
+      configsOrScripts,
+      blaze,
       input,
       recipient,
       amount,
       datum,
       signers,
-    )
+    })
   ).complete();
 
-  await transactionDialog(blazeInstance.provider.network, tx.toCbor(), false);
+  await transactionDialog(blaze.provider.network, tx.toCbor(), false);
 }
