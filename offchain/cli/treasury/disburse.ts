@@ -1,11 +1,16 @@
-import {
-  Address,
-  Ed25519KeyHashHex,
-  Value
-} from "@blaze-cardano/core";
+import { Address, Ed25519KeyHashHex, Value } from "@blaze-cardano/core";
 import { Blaze, makeValue, Provider, Wallet } from "@blaze-cardano/sdk";
 import { input, select } from "@inquirer/prompts";
-import { getAnchor, getBlazeInstance, getConfigs, getDate, getOptional, getTransactionMetadata, selectUtxo, transactionDialog } from "cli/shared";
+import {
+  getAnchor,
+  getBlazeInstance,
+  getConfigs,
+  getDate,
+  getOptional,
+  getTransactionMetadata,
+  selectUtxo,
+  transactionDialog,
+} from "cli/shared";
 import { IDestination, IDisburse, Treasury } from "src";
 import { loadTreasuryScript } from "src/shared";
 
@@ -18,31 +23,34 @@ async function getDestinations(): Promise<{
   let moreDestinations = true;
 
   while (moreDestinations) {
-
     let destination: IDestination;
 
     const label = await input({
       message: "What is the name of the destination? (label)",
-      validate: (value) => (value ? true : "Destination label cannot be empty."),
+      validate: (value) =>
+        value ? true : "Destination label cannot be empty.",
     });
 
     // todo: check if there is already function we can reuse for this
     const address = Address.fromBech32(
       await input({
         message: "Enter the address of the destination",
-        validate: (value) => (value ? true : "Destination address cannot be empty."),
+        validate: (value) =>
+          value ? true : "Destination address cannot be empty.",
       }),
     );
 
-    const amount = makeValue(BigInt(
-      await input({
-        message: `How much ada (in lovelace) should be sent to ${label}?`,
-        validate: (value) => {
-          const parsedValue = parseInt(value, 10);
-          return parsedValue > 0 ? true : "Amount must be a positive value.";
-        },
-      }),
-    ));
+    const amount = makeValue(
+      BigInt(
+        await input({
+          message: `How much ada (in lovelace) should be sent to ${label}?`,
+          validate: (value) => {
+            const parsedValue = parseInt(value, 10);
+            return parsedValue > 0 ? true : "Amount must be a positive value.";
+          },
+        }),
+      ),
+    );
 
     const details = await getOptional(
       "Do you want to add details for this destination? (optional)",
@@ -65,11 +73,12 @@ async function getDestinations(): Promise<{
   }
 
   return { destinations, recipients };
-} 
+}
 
 // todo: let the user give a validity start or end
-export async function getValidInterval(): Promise<{ from: number; to: number } | undefined> {
-
+export async function getValidInterval(): Promise<
+  { from: number; to: number } | undefined
+> {
   let range;
 
   const details = await getOptional(
@@ -121,13 +130,9 @@ export async function disburse(
     Ed25519KeyHashHex(
       "1880102b04725318eb7a6f9f481815c82473c2f50cfe9932c85a3bf8",
     ),
-    // xer
+    // dquadrant
     Ed25519KeyHashHex(
-      "a7f06cf4e9c03c6b7eac317d5533d573a9be3018fb7b9d95dd778d39",
-    ),
-    // nmkr
-    Ed25519KeyHashHex(
-      "8349f8b41d8337b617947ace444ef95b2b80ff2605cadf969914cf95",
+      "679ad28e567eb42ddb30a5cf6b5f066b2defbce393f19968d711f658",
     ),
   ];
 
@@ -147,7 +152,7 @@ export async function disburse(
     }),
     destination: {} as IDestination,
     estimatedReturn: BigInt(
-      (await getDate("When should the disbursed funds be returned?")).getTime()
+      (await getDate("When should the disbursed funds be returned?")).getTime(),
     ),
   } as IDisburse;
 

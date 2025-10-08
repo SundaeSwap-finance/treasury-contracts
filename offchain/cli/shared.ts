@@ -556,14 +556,14 @@ export async function transactionDialog(
     { name: "Copy tx cbor", value: "copy" },
     { name: "Submit to API", value: "submit" },
   ];
-  if (expanded) {
-    console.log("Transaction cbor: ", txCbor);
-  } else {
-    console.log("Transaction cbor: ", `${txCbor.slice(0, 50)}...`);
-    choices.push({ name: "Expand", value: "expand" });
-  }
   choices.push({ name: "Back", value: "back" });
   while (true) {
+    if (expanded) {
+      console.log("Transaction cbor: ", txCbor);
+    } else {
+      console.log("Transaction cbor: ", `${txCbor.slice(0, 50)}...`);
+      choices.push({ name: "Expand", value: "expand" });
+    }
     try {
       const choice = await select({
         message: "Select an option",
