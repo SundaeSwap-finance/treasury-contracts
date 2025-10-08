@@ -19,31 +19,31 @@ import {
 import { checkbox, input, select } from "@inquirer/prompts";
 import clipboard from "clipboardy";
 import fetch from "node-fetch";
-import { ETransactionEvent } from "src";
+import { ETransactionEvent } from "../src";
 import {
   OneshotOneshotMint,
   TreasuryConfiguration,
   TreasuryTreasurySpend,
   VendorConfiguration,
   VendorVendorSpend,
-} from "src/generated-types/contracts";
-import { IOutput } from "src/metadata/types/initialize-reorganize";
-import { INewInstance } from "src/metadata/types/new-instance";
+} from "../src/generated-types/contracts";
+import {
+  type IAnchor,
+  type ITransactionMetadata,
+} from "../src/metadata/shared";
+import { IOutput } from "../src/metadata/types/initialize-reorganize";
+import { INewInstance } from "../src/metadata/types/new-instance";
 import {
   toMultisig,
   TPermissionMetadata,
   TPermissionName,
-} from "src/metadata/types/permission";
+} from "../src/metadata/types/permission";
 import {
   constructScriptsFromBytes,
   ICompiledScripts,
   IConfigs,
   loadConfigsAndScripts,
-} from "src/shared";
-import {
-  type IAnchor,
-  type ITransactionMetadata,
-} from "../src/metadata/shared";
+} from "../src/shared";
 import { CustomProvider } from "./custom";
 
 const BLOCKFROST_VAR = "BLOCKFROST_KEY";
@@ -67,63 +67,62 @@ export interface IOnDiskInstance {
   metadata?: ITransactionMetadata<INewInstance>;
 }
 
-async function getSignersFromList(
+async function getConditionsFromList(
   permissions: TPermissionMetadata[],
   min: number,
-): Promise<Ed25519KeyHashHex[]> {
-  const choices = await Promise.all(
-    permissions.map(async (script) => ({
-      name: script.label || JSON.stringify(script),
-      value: await getSigners(script),
-    })),
-  );
+): Promise<TPermissionMetadata[]> {
+  const choices = permissions.map((script) => ({
+    name: script.label || JSON.stringify(script),
+    value: script,
+  }));
   const selections = await checkbox({
-    message: "Select the keys that will be signing the transaction",
+    message: "Select the conditions that will be signing the transaction",
     choices,
     validate: (selected) => {
       if (selected.length < min) {
-        return "You must select at least one key";
+        return `You must select at least ${min} conditions`;
       }
       return true;
     },
   });
-  return selections.flat();
+  return selections;
 }
 
 export async function getSigners(
   ...permissions: TPermissionMetadata[]
-): Promise<Ed25519KeyHashHex[]> {
-  const signers: Ed25519KeyHashHex[] = [];
+): Promise<Set<Ed25519KeyHashHex>> {
+  let signers: Set<Ed25519KeyHashHex> = new Set();
 
   for (const permission of permissions) {
     if ("signature" in permission) {
-      signers.push(Ed25519KeyHashHex(permission.signature.keyHash));
+      signers.add(Ed25519KeyHashHex(permission.signature.keyHash));
     }
 
     if ("atLeast" in permission) {
-      signers.push(
-        ...(await getSignersFromList(
-          permission.atLeast.scripts,
-          Number(permission.atLeast.required),
-        )),
+      const scripts = await getConditionsFromList(
+        permission.atLeast.scripts,
+        Number(permission.atLeast.required),
       );
+      for (const script of scripts) {
+        signers = signers.union<Ed25519KeyHashHex>(await getSigners(script));
+      }
     }
 
     if ("anyOf" in permission) {
-      signers.push(...(await getSignersFromList(permission.anyOf.scripts, 1)));
+      const scripts = await getConditionsFromList(permission.anyOf.scripts, 1);
+      for (const script of scripts) {
+        signers = signers.union<Ed25519KeyHashHex>(await getSigners(script));
+      }
     }
 
     if ("allOf" in permission) {
-      const allSigners = await Promise.all(
-        permission.allOf.scripts.map(
-          async (script) => await getSigners(script),
-        ),
-      );
-      signers.push(...allSigners.flat());
+      for (const script of permission.allOf.scripts) {
+        signers = signers.union<Ed25519KeyHashHex>(await getSigners(script));
+      }
     }
   }
 
-  return signers.filter((v, i) => signers.indexOf(v) === i);
+  return signers;
 }
 
 export async function inputOrEnv(opts: {
@@ -352,13 +351,11 @@ export async function getPermission(
   }
 }
 
-export function isAddressOrHex(
+export function isAddress(
   str: string,
   expectedType: CredentialType,
 ): true | string {
-  if (/[0-9a-fA-F]{56}/.test(str)) {
-    return true;
-  } else if (str.startsWith("addr") || str.startsWith("stake")) {
+  if (str.startsWith("addr") || str.startsWith("stake")) {
     try {
       const addr = Address.fromBech32(str);
       if (str.startsWith("addr")) {
@@ -378,6 +375,17 @@ export function isAddressOrHex(
     }
   } else {
     return "Unrecognized format";
+  }
+}
+
+export function isAddressOrHex(
+  str: string,
+  expectedType: CredentialType,
+): true | string {
+  if (/[0-9a-fA-F]{56}/.test(str)) {
+    return true;
+  } else {
+    return isAddress(str, expectedType);
   }
 }
 
@@ -551,11 +559,13 @@ export async function transactionDialog(
   network: Core.NetworkId,
   txCbor: string,
   expanded: boolean,
+  allowSubmitToApi: boolean = true,
 ): Promise<void> {
-  const choices = [
-    { name: "Copy tx cbor", value: "copy" },
-    { name: "Submit to API", value: "submit" },
-  ];
+  const choices = [{ name: "Copy tx cbor", value: "copy" }];
+  if (allowSubmitToApi) {
+    choices.push({ name: "Submit to API", value: "submit" });
+  }
+
   if (expanded) {
     console.log("Transaction cbor: ", txCbor);
   } else {
@@ -608,6 +618,7 @@ export async function transactionDialog(
         case "back":
           return;
         case "expand":
+          console.log("Transaction cbor: ", txCbor);
           expanded = true;
           break;
         default:
@@ -861,8 +872,8 @@ export async function configToMetaData(
     TPermissionMetadata | TPermissionName | null
   >,
   seedUtxo: {
-    transactionId: string;
-    outputIndex: bigint;
+    transaction_id: string;
+    output_index: bigint;
   },
 ): Promise<ITransactionMetadata<INewInstance>> {
   return await getTransactionMetadata(instance, {

@@ -1,6 +1,8 @@
 import {
   AssetId,
   Ed25519KeyHashHex,
+  PlutusData,
+  Script,
   Slot,
   toHex,
   TransactionUnspentOutput,
@@ -17,6 +19,7 @@ import {
 import { TreasurySpendRedeemer } from "../../generated-types/contracts.js";
 import {
   loadConfigsAndScripts,
+  rewardAccountFromScript,
   TConfigsOrScripts,
 } from "../../shared/index.js";
 
@@ -26,6 +29,7 @@ export interface IReorganizeArgs<P extends Provider, W extends Wallet> {
   inputs: TransactionUnspentOutput[];
   outputAmounts: Value[];
   signers: Ed25519KeyHashHex[];
+  additionalScripts?: { script: Script; redeemer: PlutusData }[];
 }
 
 export async function reorganize<P extends Provider, W extends Wallet>({
@@ -34,6 +38,7 @@ export async function reorganize<P extends Provider, W extends Wallet>({
   inputs,
   outputAmounts,
   signers,
+  additionalScripts,
 }: IReorganizeArgs<P, W>): Promise<TxBuilder> {
   const { configs, scripts } = loadConfigsAndScripts(blaze, configsOrScripts);
   const { script, scriptAddress } = scripts.treasuryScript;
@@ -48,6 +53,19 @@ export async function reorganize<P extends Provider, W extends Wallet>({
     .setValidUntil(Slot(Number(configs.treasury.expiration / 1000n) - 1))
     .addReferenceInput(registryInput)
     .addReferenceInput(refInput);
+
+  if (!!additionalScripts) {
+    for (const { script, redeemer } of additionalScripts) {
+      const refInput = await blaze.provider.resolveScriptRef(script);
+      tx = tx
+        .addReferenceInput(refInput!)
+        .addWithdrawal(
+          rewardAccountFromScript(script, blaze.provider.network),
+          0n,
+          redeemer,
+        );
+    }
+  }
 
   for (const signer of signers) {
     tx = tx.addRequiredSigner(signer);

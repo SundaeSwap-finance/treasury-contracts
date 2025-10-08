@@ -409,24 +409,24 @@ describe("", () => {
             /Trace satisfied\(input_vendor_datum.vendor, extra_signatories, validity_range, withdrawals\)/,
           );
         });
-        test("without the new vendors permission", async () => {
-          const newDatum: VendorDatum = {
-            vendor: newVendor,
-            payouts: firstDatum.payouts,
-          };
-          await emulator.as(Modifier, async (blaze) => {
-            emulator.expectScriptFailure(
-              await modify({
-                configsOrScripts,
-                blaze,
-                now: new Date(Number(emulator.slotToUnix(Slot(0)))),
-                input: scriptInput,
-                new_vendor: newDatum,
-                signers: [modifySigner, vendorSigner],
-              }),
-              /Trace expect\s*satisfied\(v.vendor, extra_signatories, validity_range, withdrawals\)/,
-            );
-          });
+      });
+      test("without the new vendors permission", async () => {
+        const newDatum: VendorDatum = {
+          vendor: newVendor,
+          payouts: firstDatum.payouts,
+        };
+        await emulator.as(Modifier, async (blaze) => {
+          emulator.expectScriptFailure(
+            await modify({
+              configsOrScripts,
+              blaze,
+              now: new Date(Number(emulator.slotToUnix(Slot(0)))),
+              input: scriptInput,
+              new_vendor: newDatum,
+              signers: [modifySigner, vendorSigner],
+            }),
+            /Trace expect\s*satisfied\(v.vendor, extra_signatories, validity_range, withdrawals\)/,
+          );
         });
       });
     });

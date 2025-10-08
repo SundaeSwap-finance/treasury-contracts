@@ -1,15 +1,20 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-import { Value } from "@blaze-cardano/core";
-import { Blaze, makeValue, Provider, Wallet } from "@blaze-cardano/sdk";
-import { input, select } from "@inquirer/prompts";
-import { IFund, IFundMilestone } from "src/metadata/types/fund";
+import { Address, CredentialType, Script, Value } from "@blaze-cardano/core";
+import { Blaze, Core, makeValue, Provider, Wallet } from "@blaze-cardano/sdk";
+import { confirm, input, select } from "@inquirer/prompts";
+
+import { Void } from "@blaze-cardano/data";
+import { Treasury } from "../../src";
+import { IFund, IFundMilestone } from "../../src/metadata/types/fund";
 import {
   toMultisig,
   toPermission,
   TPermissionMetadata,
-} from "src/metadata/types/permission";
-import { Treasury } from "../../src";
-import { loadTreasuryScript } from "../../src/shared";
+} from "../../src/metadata/types/permission";
+import {
+  coreAddressToContractsAddress,
+  loadAllowlistScript,
+  loadConfigsAndScripts,
+} from "../../src/shared";
 import {
   getActualPermission,
   getAnchor,
@@ -20,6 +25,7 @@ import {
   getPermission,
   getSigners,
   getTransactionMetadata,
+  isAddress,
   maybeInput,
   selectUtxo,
   transactionDialog,
@@ -106,9 +112,80 @@ export async function fund(
     blazeInstance = await getBlazeInstance();
   }
   const { configs, scripts, metadata } = await getConfigs(blazeInstance);
-  const vendorPermissions: TPermissionMetadata = (await getPermission(
+  let vendorPermissions: TPermissionMetadata = (await getPermission(
     "Which multisig should be able to use the funds?",
   )) as TPermissionMetadata;
+
+  let allowListScript: Script | undefined;
+
+  if (
+    await confirm({
+      message: "Would you like to limit which addresses can receive funds?",
+    })
+  ) {
+    const addresses = [];
+    while (true) {
+      const nextAddress = await input({
+        message: "Enter an address, empty to finish",
+        validate: (s) => s == "" || isAddress(s, CredentialType.KeyHash),
+      });
+      if (!nextAddress) {
+        if (addresses.length > 0) {
+          break;
+        } else {
+          console.log("No addresses provided");
+        }
+      }
+      addresses.push(
+        coreAddressToContractsAddress(Address.fromBech32(nextAddress)),
+      );
+    }
+    const allowlist = loadAllowlistScript(blazeInstance.provider.network, {
+      registry_token: configs.treasury.registry_token,
+      addresses,
+    });
+    allowListScript = allowlist.script.Script;
+
+    vendorPermissions = {
+      allOf: {
+        scripts: [
+          vendorPermissions,
+          {
+            script: {
+              scriptHash: allowlist.script.Script.hash(),
+            },
+          },
+        ],
+      },
+    };
+  }
+
+  if (
+    allowListScript &&
+    (await confirm({
+      message:
+        "Do you want to publish the script for these addresses on-chain?",
+    }))
+  ) {
+    const tx = await blazeInstance
+      .newTransaction()
+      .deployScript(allowListScript)
+      .addRegisterStake(
+        Core.Credential.fromCore({
+          hash: allowListScript.hash(),
+          type: Core.CredentialType.ScriptHash,
+        }),
+      )
+      .complete();
+
+    await transactionDialog(
+      blazeInstance.provider.network,
+      tx.toCbor(),
+      false,
+      false,
+    );
+  }
+
   const vendor = toMultisig(vendorPermissions);
 
   const metadataBody = {
@@ -152,10 +229,11 @@ export async function fund(
     metadataBody,
   );
 
-  const { scriptAddress: treasuryScriptAddress, ...rest } = loadTreasuryScript(
-    blazeInstance.provider.network,
-    configs.treasury,
-  );
+  const {
+    scripts: {
+      treasuryScript: { scriptAddress: treasuryScriptAddress },
+    },
+  } = loadConfigsAndScripts(blazeInstance, { configs, scripts });
 
   const utxos = await blazeInstance.provider.getUnspentOutputs(
     treasuryScriptAddress,
@@ -170,21 +248,27 @@ export async function fund(
     : toPermission(configs.treasury.permissions.fund);
 
   const signers = await getSigners(fundPermissions, vendorPermissions);
+  const tx = await Treasury.fund({
+    configsOrScripts: {
+      configs,
+      scripts,
+    },
+    blaze: blazeInstance,
+    input: utxo,
+    vendor,
+    schedule,
+    signers: [...signers.values()],
+    metadata: txMetadata,
+    additionalScripts: allowListScript
+      ? [{ script: allowListScript, redeemer: Void() }]
+      : undefined,
+  });
 
-  const tx = await (
-    await Treasury.fund({
-      configsOrScripts: {
-        configs,
-        scripts,
-      },
-      blaze: blazeInstance,
-      input: utxo,
-      vendor,
-      schedule,
-      signers,
-      metadata: txMetadata,
-    })
-  ).complete();
+  const complete = await tx.complete();
 
-  await transactionDialog(blazeInstance.provider.network, tx.toCbor(), false);
+  await transactionDialog(
+    blazeInstance.provider.network,
+    complete.toCbor(),
+    false,
+  );
 }

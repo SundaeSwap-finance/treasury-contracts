@@ -2,7 +2,10 @@ import {
   AssetId,
   AuxiliaryData,
   Ed25519KeyHashHex,
+  Hash28ByteBase16,
   NetworkId,
+  PlutusData,
+  Script,
   Slot,
   toHex,
   TransactionUnspentOutput,
@@ -28,6 +31,7 @@ import { IFund } from "../../metadata/types/fund.js";
 import {
   coreValueToContractsValue,
   loadConfigsAndScripts,
+  rewardAccountFromScript,
   TConfigsOrScripts,
 } from "../../shared/index.js";
 
@@ -40,6 +44,10 @@ export interface IFundArgs<P extends Provider, W extends Wallet> {
   vendor: MultisigScript;
   schedule: { date: Date; amount: Value }[];
   signers: Ed25519KeyHashHex[];
+  additionalScripts?: {
+    script: Script | Hash28ByteBase16;
+    redeemer: PlutusData;
+  }[];
   metadata?: ITransactionMetadata<IFund>;
 }
 
@@ -49,6 +57,7 @@ export async function fund<P extends Provider, W extends Wallet>({
   input,
   schedule,
   signers,
+  additionalScripts,
   metadata,
   vendor,
   validFromSlot,
@@ -64,7 +73,6 @@ export async function fund<P extends Provider, W extends Wallet>({
   if (validFromSlot) {
     tx.setValidFrom(Slot(validFromSlot));
   }
-
   if (validUntilSlot) {
     tx.setValidUntil(Slot(validUntilSlot));
   } else {
@@ -79,6 +87,26 @@ export async function fund<P extends Provider, W extends Wallet>({
 
     const upperBoundSlot = blaze.provider.unixToSlot(upperBoundUnix) - 30;
     tx.setValidUntil(Slot(upperBoundSlot));
+  }
+
+  if (!!additionalScripts) {
+    for (const { script, redeemer } of additionalScripts) {
+      const refInput = await blaze.provider.resolveScriptRef(script);
+      if (refInput) {
+        tx.addReferenceInput(refInput).addWithdrawal(
+          rewardAccountFromScript(
+            refInput.output().scriptRef()!,
+            blaze.provider.network,
+          ),
+          0n,
+          redeemer,
+        );
+      } else {
+        throw new Error(
+          `Could not find one of the additional scripts provided on-chain: ${script instanceof Script ? script.hash() : script}. Please publish the script and try again.`,
+        );
+      }
+    }
   }
 
   if (!scripts.treasuryScript.scriptRef) {

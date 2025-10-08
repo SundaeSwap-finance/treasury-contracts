@@ -21,6 +21,10 @@
     "src",
     "LICENSE.md"
   ],
+  "engineStrict": true,
+  "engines": {
+    "node": "^22"
+  },
   "scripts": {
     "clean": "rm -rf ./dist",
     "build:esm": "cross-env BABEL_ENV=esmUnbundled babel src --extensions '.ts,.tsx' --out-dir './dist/esm' --source-maps",
@@ -46,7 +50,7 @@
     "@blaze-cardano/sdk": "^0.2.33",
     "@blaze-cardano/data": "^0.6.0",
     "@blaze-cardano/query": "^0.5.0",
-    "@blaze-cardano/uplc": "^0.3.2"
+    "@blaze-cardano/uplc": "^0.4.1"
   },
   "devDependencies": {
     "@babel/cli": "^7.27.2",
@@ -54,8 +58,10 @@
     "@babel/plugin-proposal-class-properties": "^7.18.6",
     "@babel/preset-env": "^7.27.2",
     "@babel/preset-typescript": "^7.27.1",
-    "@blaze-cardano/emulator": "^0.3.28",
     "@blaze-cardano/blueprint": "^0.6.1",
+    "@blaze-cardano/emulator": "^0.3.28",
+    "@blaze-cardano/vm": "^0.2.1",
+    "@emurgo/cardano-message-signing-nodejs": "^1.1.0",
     "@sundaeswap/babel-preset": "^2.0.15",
     "@sundaeswap/eslint-config": "^2.0.15",
     "@types/bun": "latest",
