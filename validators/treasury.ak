@@ -5,8 +5,9 @@ use cardano/certificate.{
   AlwaysAbstain, Certificate, DelegateCredential, DelegateVote,
   RegisterAndDelegateCredential, RegisterCredential, UnregisterCredential,
 }
-use cardano/transaction.{Input,
-  Output, OutputReference, Transaction, find_input}
+use cardano/transaction.{
+  Input, Output, OutputReference, Transaction, find_input,
+}
 use logic/treasury/disburse
 use logic/treasury/fund
 use logic/treasury/reorganize
