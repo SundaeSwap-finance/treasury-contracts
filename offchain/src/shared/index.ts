@@ -121,7 +121,7 @@ export function loadAllowlistScript(
   trace?: boolean,
   scriptRef?: TransactionUnspentOutput,
 ): ICompiledScript<AllowlistVendorAllowlistVendorWithdraw, AllowlistConfig> {
-  const script = new AllowlistVendorAllowlistVendorWithdraw(config);
+  const script = new AllowlistVendorAllowlistVendorWithdraw(config, trace);
   return constructScript(network, config, script.Script, scriptRef);
 }
 
