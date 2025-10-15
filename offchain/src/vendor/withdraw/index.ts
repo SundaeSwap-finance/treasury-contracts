@@ -65,7 +65,7 @@ export async function withdraw<P extends Provider, W extends Wallet>({
     AssetId(configs.vendor.registry_token + toHex(Buffer.from("REGISTRY"))),
   );
 
-  let tx = blaze
+  const tx = blaze
     .newTransaction()
     .addReferenceInput(registryInput)
     .setValidFrom(blaze.provider.unixToSlot(now.valueOf()));
@@ -104,11 +104,11 @@ export async function withdraw<P extends Provider, W extends Wallet>({
   if (metadata) {
     const auxData = new AuxiliaryData();
     auxData.setMetadata(toTxMetadata(metadata));
-    tx = tx.setAuxiliaryData(auxData);
+    tx.setAuxiliaryData(auxData);
   }
 
   for (const signer of signers) {
-    tx = tx.addRequiredSigner(signer);
+    tx.addRequiredSigner(signer);
   }
 
   let totalValue = SdkValue.zero();
@@ -142,7 +142,7 @@ export async function withdraw<P extends Provider, W extends Wallet>({
         SdkValue.negate(thisValue),
       );
       if (newDatum.payouts.length > 0 || !SdkValue.empty(remainder)) {
-        tx = tx.lockAssets(
+        tx.lockAssets(
           scriptAddress,
           remainder,
           Data.serialize(VendorDatum, newDatum),
@@ -153,14 +153,13 @@ export async function withdraw<P extends Provider, W extends Wallet>({
   }
 
   if (destination) {
-    tx = tx.payAssets(destination, totalValue);
+    tx.payAssets(destination, totalValue);
   } else if (destinations) {
     for (const { address, amount } of destinations) {
-      tx = tx.payAssets(address, amount);
+      tx.payAssets(address, amount);
     }
-  } else {
-    for (let idx = 0; idx < inputs.length; idx++) {
-      const input = inputs[idx];
+  } else if (!tx.outputsCount) {
+    for (const input of inputs) {
       tx.addOutput(input.output());
     }
   }
