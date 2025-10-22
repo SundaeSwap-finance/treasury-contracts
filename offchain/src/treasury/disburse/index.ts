@@ -8,7 +8,7 @@ import {
   Slot,
   toHex,
   TransactionUnspentOutput,
-  Value
+  Value,
 } from "@blaze-cardano/core";
 import * as Data from "@blaze-cardano/data";
 import {
@@ -33,7 +33,7 @@ import {
 export interface IDisburseArgs<P extends Provider, W extends Wallet> {
   configsOrScripts: TConfigsOrScripts;
   blaze: Blaze<P, W>;
-  input: TransactionUnspentOutput;
+  input: TransactionUnspentOutput | TransactionUnspentOutput[];
   recipients: { address: Address; amount: Value }[];
   datum?: Datum;
   signers: Ed25519KeyHashHex[];
@@ -55,8 +55,7 @@ export async function disburse<P extends Provider, W extends Wallet>({
 }: IDisburseArgs<P, W>): Promise<TxBuilder> {
   console.log("Disburse transaction started");
   const { configs, scripts } = loadConfigsAndScripts(blaze, configsOrScripts);
-  const { script: treasuryScript, scriptAddress: treasuryScriptAddress } =
-    scripts.treasuryScript;
+  const { scriptAddress: treasuryScriptAddress } = scripts.treasuryScript;
   const registryInput = await blaze.provider.getUnspentOutputByNFT(
     AssetId(configs.treasury.registry_token + toHex(Buffer.from("REGISTRY"))),
   );
@@ -118,17 +117,26 @@ export async function disburse<P extends Provider, W extends Wallet>({
     makeValue(0n),
   );
 
-  tx = tx.addInput(
-    input,
-    Data.serialize(TreasurySpendRedeemer, {
-      Disburse: {
-        amount: coreValueToContractsValue(disbursedAmount),
-      },
-    }),
-  );
+  const inputAmount = Array.isArray(input)
+    ? input.reduce(
+        (acc, r) => Tx.Value.merge(acc, r.output().amount()),
+        makeValue(0n),
+      )
+    : input.output().amount();
+
+  for (const inp of Array.isArray(input) ? input : [input]) {
+    tx = tx.addInput(
+      inp,
+      Data.serialize(TreasurySpendRedeemer, {
+        Disburse: {
+          amount: coreValueToContractsValue(disbursedAmount),
+        },
+      }),
+    );
+  }
 
   const remainder = Tx.Value.merge(
-    input.output().amount(),
+    inputAmount,
     Tx.Value.negate(disbursedAmount),
   );
   if (!Tx.Value.empty(remainder)) {

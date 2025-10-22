@@ -1,20 +1,30 @@
 import { Address, Ed25519KeyHashHex, Value } from "@blaze-cardano/core";
 import { Blaze, makeValue, Provider, Wallet } from "@blaze-cardano/sdk";
+import * as Tx from "@blaze-cardano/tx";
 import { input, select } from "@inquirer/prompts";
 import {
+  chooseAmount,
+  getActualPermission,
   getAnchor,
   getBlazeInstance,
   getConfigs,
   getDate,
   getOptional,
+  getSigners,
   getTransactionMetadata,
-  selectUtxo,
+  selectUtxos,
   transactionDialog,
 } from "cli/shared";
-import { IDestination, IDisburse, Treasury } from "src";
+import {
+  IDestination,
+  IDisburse,
+  IReference,
+  toPermission,
+  Treasury,
+} from "src";
 import { loadTreasuryScript } from "src/shared";
 
-async function getDestinations(): Promise<{
+async function getDestinations(maxValue: Value): Promise<{
   recipients: { address: Address; amount: Value }[];
   destinations: IDestination[];
 }> {
@@ -23,8 +33,6 @@ async function getDestinations(): Promise<{
   let moreDestinations = true;
 
   while (moreDestinations) {
-    let destination: IDestination;
-
     const label = await input({
       message: "What is the name of the destination? (label)",
       validate: (value) =>
@@ -40,17 +48,8 @@ async function getDestinations(): Promise<{
       }),
     );
 
-    const amount = makeValue(
-      BigInt(
-        await input({
-          message: `How much ada (in lovelace) should be sent to ${label}?`,
-          validate: (value) => {
-            const parsedValue = parseInt(value, 10);
-            return parsedValue > 0 ? true : "Amount must be a positive value.";
-          },
-        }),
-      ),
-    );
+    const amount = await chooseAmount(label, maxValue);
+    maxValue = Tx.Value.merge(maxValue, Tx.Value.negate(amount));
 
     const details = await getOptional(
       "Do you want to add details for this destination? (optional)",
@@ -58,7 +57,7 @@ async function getDestinations(): Promise<{
       getAnchor,
     );
 
-    destination = { label, details };
+    const destination = { label, details };
 
     recipients.push({ address, amount });
     destinations.push(destination);
@@ -77,16 +76,33 @@ async function getDestinations(): Promise<{
 
 // todo: let the user give a validity start or end
 export async function getValidInterval(): Promise<
-  { from: number; to: number } | undefined
+  { fromPosix: number; toPosix: number } | undefined
 > {
-  let range;
-
   const details = await getOptional(
     "Do you want to choose transaction validity interval for this transaction? (optional)",
-    undefined,
-    getAnchor,
+    "Valid Start?",
+    async () => {
+      return {
+        validStart: await getDate("Valid Start?"),
+        validEnd: await getDate("Valid End?"),
+      };
+    },
   );
-  return range;
+  if (details) {
+    const { validStart, validEnd } = details;
+    return { fromPosix: validStart.valueOf(), toPosix: validEnd.valueOf() };
+  }
+  return undefined;
+}
+
+export async function getReference(): Promise<IReference> {
+  const type = await select({
+    message: "Type?",
+    choices: [{ name: "Other", value: "Other" }],
+  });
+  const label = await input({ message: "Label?" });
+  const uri = await input({ message: "URI?" });
+  return { "@type": type, label, uri };
 }
 
 export async function disburse(
@@ -95,9 +111,9 @@ export async function disburse(
   if (!blazeInstance) {
     blazeInstance = await getBlazeInstance();
   }
-  const { configs, scripts, metadata } = await getConfigs(blazeInstance);
+  const { configs, scripts } = await getConfigs(blazeInstance);
 
-  const { scriptAddress: treasuryScriptAddress, ...rest } = loadTreasuryScript(
+  const { scriptAddress: treasuryScriptAddress } = loadTreasuryScript(
     blazeInstance.provider.network,
     configs.treasury,
   );
@@ -105,36 +121,21 @@ export async function disburse(
   const utxos = await blazeInstance.provider.getUnspentOutputs(
     treasuryScriptAddress,
   );
-  const inputUtxo = await selectUtxo(utxos);
+  const inputUtxos = await selectUtxos(utxos);
+  const inputAmount = inputUtxos.reduce(
+    (acc, r) => Tx.Value.merge(acc, r.output().amount()),
+    makeValue(0n),
+  );
 
-  const signers = [
-    // int admin
-    Ed25519KeyHashHex(
-      "1be0008bf2994524c0eaf0efdae4431e4a61ef7d974804fa794110b7",
-    ),
-    Ed25519KeyHashHex(
-      "a664de561ccd2ca9a07c060d4dd7cea4dc68ba89d4bf04b21ff0726f",
-    ),
-    // int leader
-    Ed25519KeyHashHex(
-      "4e72b1facdc7eea745767b8daca40bf73d75eb0e88dcee80d57eec5d",
-    ),
-    Ed25519KeyHashHex(
-      "91f5b1d436080c1beca93fbbb96596312d8f615b0ad9e94470af2224",
-    ),
-    // cf
-    Ed25519KeyHashHex(
-      "c9f2966a1b357718b45a006954106ba1f7ae9fea16e9826f3486ddd6",
-    ),
-    // sundae
-    Ed25519KeyHashHex(
-      "1880102b04725318eb7a6f9f481815c82473c2f50cfe9932c85a3bf8",
-    ),
-    // dquadrant
-    Ed25519KeyHashHex(
-      "679ad28e567eb42ddb30a5cf6b5f066b2defbce393f19968d711f658",
-    ),
-  ];
+  const signers = await getSigners(
+    toPermission(configs.treasury.permissions.disburse),
+  );
+
+  const returnDate = await getOptional(
+    "Will these funds be returned?",
+    undefined,
+    async () => getDate("When should the disbursed funds be returned?"),
+  );
 
   const metadataBody = {
     event: "disburse",
@@ -151,12 +152,10 @@ export async function disburse(
       validate: (value) => (value ? true : "Justification cannot be empty."),
     }),
     destination: {} as IDestination,
-    estimatedReturn: BigInt(
-      (await getDate("When should the disbursed funds be returned?")).getTime(),
-    ),
+    estimatedReturn: returnDate ? BigInt(returnDate.getTime()) : undefined,
   } as IDisburse;
 
-  const { destinations, recipients } = await getDestinations();
+  const { destinations, recipients } = await getDestinations(inputAmount);
 
   metadataBody.destination = destinations;
 
@@ -165,6 +164,24 @@ export async function disburse(
     metadataBody,
   );
 
+  const validityInterval = await getValidInterval();
+
+  while (true) {
+    const reference = await getOptional(
+      (txMetadata.body.references?.length ?? 0 > 0)
+        ? "Attach another reference?"
+        : "Attach a reference?",
+      undefined,
+      async () => getReference(),
+    );
+    if (reference) {
+      txMetadata.body.references ??= [];
+      txMetadata.body.references.push(reference);
+    } else {
+      break;
+    }
+  }
+
   const tx = await (
     await Treasury.disburse({
       configsOrScripts: {
@@ -172,10 +189,16 @@ export async function disburse(
         scripts,
       },
       blaze: blazeInstance,
-      input: inputUtxo,
+      input: inputUtxos,
       recipients: recipients,
       signers,
       metadata: txMetadata,
+      validFromSlot: validityInterval
+        ? blazeInstance.provider.unixToSlot(validityInterval.fromPosix)
+        : undefined,
+      validUntilSlot: validityInterval
+        ? blazeInstance.provider.unixToSlot(validityInterval.toPosix)
+        : undefined,
     })
   ).complete();
 
