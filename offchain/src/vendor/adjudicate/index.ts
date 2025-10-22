@@ -88,7 +88,7 @@ export async function adjudicate<P extends Provider, W extends Wallet>({
   if (validUntilSlot) {
     tx.setValidUntil(Slot(validUntilSlot));
   } else {
-    const thirty_six_hours = 12 * 60 * 60 * 1000; // 36 hours in milliseconds
+    const thirty_six_hours = 36 * 60 * 60 * 1000; // 36 hours in milliseconds
     tx.setValidUntil(
       blaze.provider.unixToSlot(now.valueOf() + thirty_six_hours - 1000),
     );
