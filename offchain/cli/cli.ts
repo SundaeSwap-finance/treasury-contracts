@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { Command } from "commander";
+import { disburse } from "./treasury/disburse";
 import { fund } from "./treasury/fund";
 import { publish } from "./treasury/publish";
 import { withdraw as initialize } from "./treasury/withdraw";
@@ -54,6 +55,13 @@ program
   .description("Withdraw one or more payouts in a vendor contract")
   .action(async () => {
     await withdraw();
+  });
+
+program
+  .command("disburse")
+  .description("Disburse funds from the treasury contract")
+  .action(async () => {
+    await disburse();
   });
 
 program.parse(process.argv);
