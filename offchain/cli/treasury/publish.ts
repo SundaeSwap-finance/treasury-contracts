@@ -14,7 +14,7 @@ import { input, select } from "@inquirer/prompts";
 import {
   OneshotOneshotMint,
   ScriptHashRegistry,
-} from "src/generated-types/contracts";
+} from "../../src/generated-types/contracts";
 import { toTxMetadata } from "../../src/metadata/shared";
 import { contractsValueToCoreValue } from "../../src/shared";
 import {

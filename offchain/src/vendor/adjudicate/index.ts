@@ -2,6 +2,10 @@ import {
   AssetId,
   AuxiliaryData,
   Ed25519KeyHashHex,
+  Hash28ByteBase16,
+  PlutusData,
+  Script,
+  Slot,
   toHex,
   TransactionUnspentOutput,
 } from "@blaze-cardano/core";
@@ -25,27 +29,37 @@ import {
 import type { IPause, IResume } from "../../metadata/types/adjudicate.js";
 import {
   loadConfigsAndScripts,
+  rewardAccountFromScript,
   TConfigsOrScripts,
 } from "../../shared/index.js";
 
 export interface IAdjudicateArgs<P extends Provider, W extends Wallet> {
   configsOrScripts: TConfigsOrScripts;
   blaze: Blaze<P, W>;
-  now: Date;
   input: TransactionUnspentOutput;
+  validFromSlot?: number;
+  validUntilSlot?: number;
+  now: Date;
   statuses: PayoutStatus[];
   signers: Ed25519KeyHashHex[];
+  additionalScripts?: {
+    script: Script | Hash28ByteBase16;
+    redeemer: PlutusData;
+  }[];
   metadata?: ITransactionMetadata<IPause | IResume>;
 }
 
 export async function adjudicate<P extends Provider, W extends Wallet>({
   configsOrScripts,
   blaze,
-  now,
   input,
   statuses,
   signers,
+  additionalScripts,
   metadata,
+  validFromSlot,
+  validUntilSlot,
+  now,
 }: IAdjudicateArgs<P, W>): Promise<TxBuilder> {
   const { configs, scripts } = loadConfigsAndScripts(blaze, configsOrScripts);
   const { scriptAddress: vendorScriptAddress } = scripts.vendorScript;
@@ -53,15 +67,9 @@ export async function adjudicate<P extends Provider, W extends Wallet>({
     AssetId(configs.vendor.registry_token + toHex(Buffer.from("REGISTRY"))),
   );
 
-  // TODO: switch based on network? on preview we can only project 12 hours in the future
-  const thirty_six_hours = 12 * 60 * 60 * 1000; // 36 hours in milliseconds
-  let tx = blaze
+  const tx = blaze
     .newTransaction()
     .addReferenceInput(registryInput)
-    .setValidFrom(blaze.provider.unixToSlot(now.valueOf()))
-    .setValidUntil(
-      blaze.provider.unixToSlot(now.valueOf() + thirty_six_hours - 1000),
-    )
     .addInput(
       input,
       Data.serialize(VendorSpendRedeemer, {
@@ -70,6 +78,41 @@ export async function adjudicate<P extends Provider, W extends Wallet>({
         },
       }),
     );
+
+  if (validFromSlot) {
+    tx.setValidFrom(Slot(validFromSlot));
+  } else {
+    tx.setValidFrom(blaze.provider.unixToSlot(now.valueOf()));
+  }
+
+  if (validUntilSlot) {
+    tx.setValidUntil(Slot(validUntilSlot));
+  } else {
+    const thirty_six_hours = 36 * 60 * 60 * 1000; // 36 hours in milliseconds
+    tx.setValidUntil(
+      blaze.provider.unixToSlot(now.valueOf() + thirty_six_hours - 1000),
+    );
+  }
+
+  if (!!additionalScripts) {
+    for (const { script, redeemer } of additionalScripts) {
+      const refInput = await blaze.provider.resolveScriptRef(script);
+      if (refInput) {
+        tx.addReferenceInput(refInput!).addWithdrawal(
+          rewardAccountFromScript(
+            refInput.output().scriptRef()!,
+            blaze.provider.network,
+          ),
+          0n,
+          redeemer,
+        );
+      } else {
+        throw new Error(
+          `Could not find one of the additional scripts provided on-chain: ${script instanceof Script ? script.hash() : script}. Please publish the script and try again.`,
+        );
+      }
+    }
+  }
 
   if (!scripts.vendorScript.scriptRef) {
     scripts.vendorScript.scriptRef = await blaze.provider.resolveScriptRef(
@@ -86,10 +129,10 @@ export async function adjudicate<P extends Provider, W extends Wallet>({
     const auxData = new AuxiliaryData();
     auxData.setMetadata(toTxMetadata(metadata));
 
-    tx = tx.setAuxiliaryData(auxData);
+    tx.setAuxiliaryData(auxData);
   }
   for (const signer of signers) {
-    tx = tx.addRequiredSigner(signer);
+    tx.addRequiredSigner(signer);
   }
 
   const oldDatum = Data.parse(
@@ -110,7 +153,7 @@ export async function adjudicate<P extends Provider, W extends Wallet>({
     }),
   };
 
-  tx = tx.lockAssets(
+  tx.lockAssets(
     vendorScriptAddress,
     input.output().amount(),
     Data.serialize(VendorDatum, newDatum),

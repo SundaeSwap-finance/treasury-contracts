@@ -1,7 +1,18 @@
-import { Address, TransactionUnspentOutput } from "@blaze-cardano/core";
+import {
+  Address,
+  Ed25519KeyHashHex,
+  TransactionUnspentOutput,
+} from "@blaze-cardano/core";
 import * as Data from "@blaze-cardano/data";
 import { Blaze, Provider, Wallet } from "@blaze-cardano/sdk";
 import { input } from "@inquirer/prompts";
+import { Vendor } from "../../src";
+import { VendorDatum } from "../../src/generated-types/contracts";
+import { toPermission } from "../../src/metadata/types/permission";
+import {
+  IWithdraw,
+  IWithdrawMilestone,
+} from "../../src/metadata/types/withdraw";
 import {
   getBlazeInstance,
   getConfigs,
@@ -9,11 +20,7 @@ import {
   getTransactionMetadata,
   selectUtxos,
   transactionDialog,
-} from "cli/shared";
-import { Vendor } from "src";
-import { VendorDatum } from "src/generated-types/contracts";
-import { toPermission } from "src/metadata/types/permission";
-import { IWithdraw, IWithdrawMilestone } from "src/metadata/types/withdraw";
+} from "../shared";
 
 async function getFinishedMilestones(
   vendorInputs: TransactionUnspentOutput[],
@@ -105,10 +112,10 @@ export async function withdraw(
     return datum.vendor;
   });
 
-  const signers = [];
+  let signers = new Set<Ed25519KeyHashHex>();
   for (const vendor of vendors) {
     const vendorSigners = await getSigners(toPermission(vendor));
-    signers.push(...vendorSigners);
+    signers = signers.union(vendorSigners);
   }
 
   const metadataBody = {
@@ -128,7 +135,7 @@ export async function withdraw(
       now: new Date(now),
       inputs,
       destination,
-      signers,
+      signers: [...signers.values()],
       metadata: txMetadata,
     })
   ).complete();

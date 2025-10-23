@@ -5,6 +5,8 @@ import {
   Datum,
   Ed25519KeyHashHex,
   NetworkId,
+  PlutusData,
+  Script,
   Slot,
   toHex,
   TransactionUnspentOutput,
@@ -27,6 +29,7 @@ import { TreasurySpendRedeemer } from "../../generated-types/contracts.js";
 import {
   coreValueToContractsValue,
   loadConfigsAndScripts,
+  rewardAccountFromScript,
   TConfigsOrScripts,
 } from "../../shared/index.js";
 
@@ -40,6 +43,8 @@ export interface IDisburseArgs<P extends Provider, W extends Wallet> {
   validFromSlot?: number;
   validUntilSlot?: number;
   metadata?: ITransactionMetadata<IDisburse>;
+  additionalScripts?: { script: Script; redeemer: PlutusData }[];
+  after?: boolean;
 }
 
 export async function disburse<P extends Provider, W extends Wallet>({
@@ -52,6 +57,8 @@ export async function disburse<P extends Provider, W extends Wallet>({
   validFromSlot,
   validUntilSlot,
   metadata,
+  additionalScripts,
+  after = false,
 }: IDisburseArgs<P, W>): Promise<TxBuilder> {
   console.log("Disburse transaction started");
   const { configs, scripts } = loadConfigsAndScripts(blaze, configsOrScripts);
@@ -73,9 +80,24 @@ export async function disburse<P extends Provider, W extends Wallet>({
     tx.provideScript(scripts.treasuryScript.script.Script);
   }
 
-  // todo: double check if the one shot script needs to be provided
 
-  if (validFromSlot) {
+  if (!!additionalScripts) {
+    for (const { script, redeemer } of additionalScripts) {
+      const refInput = await blaze.provider.resolveScriptRef(script);
+      tx
+        .addReferenceInput(refInput!)
+        .addWithdrawal(
+          rewardAccountFromScript(script, blaze.provider.network),
+          0n,
+          redeemer,
+        );
+    }
+  }
+    
+  // todo: double check if the one shot script needs to be provided
+  if (after) {
+    tx.setValidFrom(Slot(Number(configs.treasury.expiration / 1000n) + 1));
+  } else if (validFromSlot) {
     tx.setValidFrom(Slot(validFromSlot));
   }
 

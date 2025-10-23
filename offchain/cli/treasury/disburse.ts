@@ -1,4 +1,10 @@
-import { Address, Ed25519KeyHashHex, Value } from "@blaze-cardano/core";
+import {
+  Address,
+  Ed25519KeyHashHex,
+  Value,
+  TransactionId,
+  TransactionInput,
+} from "@blaze-cardano/core";
 import { Blaze, makeValue, Provider, Wallet } from "@blaze-cardano/sdk";
 import * as Tx from "@blaze-cardano/tx";
 import { input, select } from "@inquirer/prompts";
@@ -106,10 +112,10 @@ export async function getReference(): Promise<IReference> {
 }
 
 export async function disburse(
-  blazeInstance: Blaze<Provider, Wallet> | undefined = undefined,
+  blaze: Blaze<Provider, Wallet> | undefined = undefined,
 ): Promise<void> {
-  if (!blazeInstance) {
-    blazeInstance = await getBlazeInstance();
+  if (!blaze) {
+    blaze = await getBlazeInstance();
   }
   const { configs, scripts } = await getConfigs(blazeInstance);
 
@@ -190,7 +196,7 @@ export async function disburse(
       },
       blaze: blazeInstance,
       input: inputUtxos,
-      recipients: recipients,
+      recipients,
       signers,
       metadata: txMetadata,
       validFromSlot: validityInterval
@@ -202,5 +208,5 @@ export async function disburse(
     })
   ).complete();
 
-  await transactionDialog(blazeInstance.provider.network, tx.toCbor(), false);
+  await transactionDialog(blaze.provider.network, tx.toCbor(), false);
 }

@@ -1,6 +1,8 @@
 import {
   AssetId,
   Ed25519KeyHashHex,
+  PlutusData,
+  Script,
   toHex,
   TransactionUnspentOutput,
 } from "@blaze-cardano/core";
@@ -20,6 +22,7 @@ import {
 import {
   contractsValueToCoreValue,
   loadConfigsAndScripts,
+  rewardAccountFromScript,
   TConfigsOrScripts,
 } from "../../shared/index.js";
 
@@ -30,6 +33,7 @@ export interface IModifyArgs<P extends Provider, W extends Wallet> {
   input: TransactionUnspentOutput;
   new_vendor: VendorDatum;
   signers: Ed25519KeyHashHex[];
+  additionalScripts?: { script: Script; redeemer: PlutusData }[];
 }
 
 export async function modify<P extends Provider, W extends Wallet>({
@@ -39,6 +43,7 @@ export async function modify<P extends Provider, W extends Wallet>({
   input,
   new_vendor,
   signers,
+  additionalScripts,
 }: IModifyArgs<P, W>): Promise<TxBuilder> {
   const { configs, scripts } = loadConfigsAndScripts(blaze, configsOrScripts);
   const { scriptAddress: treasuryScriptAddress } = scripts.treasuryScript;
@@ -62,6 +67,18 @@ export async function modify<P extends Provider, W extends Wallet>({
     .addInput(input, Data.serialize(VendorSpendRedeemer, "Modify"));
   for (const signer of signers) {
     tx = tx.addRequiredSigner(signer);
+  }
+  if (!!additionalScripts) {
+    for (const { script, redeemer } of additionalScripts) {
+      const refInput = await blaze.provider.resolveScriptRef(script);
+      tx = tx
+        .addReferenceInput(refInput!)
+        .addWithdrawal(
+          rewardAccountFromScript(script, blaze.provider.network),
+          0n,
+          redeemer,
+        );
+    }
   }
 
   let vendorOutput = Value.zero();
