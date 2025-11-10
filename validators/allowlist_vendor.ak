@@ -4,6 +4,7 @@ use cardano/address.{Address, Credential}
 use cardano/assets.{PolicyId, Value}
 use cardano/certificate.{Certificate, RegisterCredential, UnregisterCredential}
 use cardano/transaction.{Output, Spend, Transaction}
+use sundae/multisig.{MultisigScript, satisfied}
 use types.{
   Fund, Modify, ScriptHashRegistry, TreasurySpendRedeemer, VendorSpendRedeemer,
   Withdraw,
@@ -11,7 +12,6 @@ use types.{
 use utilities.{
   equal_plus_min_ada, find_script_hash_registry, outputs_of, value_sum,
 }
-use sundae/multisig.{MultisigScript, satisfied}
 
 pub type AllowlistConfig {
   registry_token: PolicyId,
@@ -36,12 +36,13 @@ validator allowlist_vendor(config: AllowlistConfig) {
   publish(_redeemer: Data, certificate: Certificate, self: Transaction) {
     when certificate is {
       RegisterCredential { .. } -> True
-      UnregisterCredential { .. } -> satisfied(
-        config.deregistration,
-        self.extra_signatories,
-        self.validity_range,
-        self.withdrawals,
-      )
+      UnregisterCredential { .. } ->
+        satisfied(
+          config.deregistration,
+          self.extra_signatories,
+          self.validity_range,
+          self.withdrawals,
+        )
       _ -> False
     }
   }
