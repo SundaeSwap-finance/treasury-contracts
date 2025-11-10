@@ -25,6 +25,7 @@ import {
 } from "../../src/shared";
 import { fund } from "../../src/treasury";
 import {
+  disburse_key,
   fund_key,
   Funder,
   sampleTreasuryConfig,
@@ -91,6 +92,11 @@ describe("With a vendor with the allowlist script", () => {
       {
         registry_token: vendorConfig.registry_token,
         addresses: allowedAddresses.map(coreAddressToContractsAddress),
+        deregistration: {
+          Signature: {
+            key_hash: await disburse_key(emulator),
+          },
+        },
       },
       true,
     );

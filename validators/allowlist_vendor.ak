@@ -2,6 +2,7 @@ use aiken/collection/list
 use aiken/collection/pairs
 use cardano/address.{Address, Credential}
 use cardano/assets.{PolicyId, Value}
+use cardano/certificate.{Certificate, RegisterCredential, UnregisterCredential}
 use cardano/transaction.{Output, Spend, Transaction}
 use types.{
   Fund, Modify, ScriptHashRegistry, TreasurySpendRedeemer, VendorSpendRedeemer,
@@ -10,10 +11,12 @@ use types.{
 use utilities.{
   equal_plus_min_ada, find_script_hash_registry, outputs_of, value_sum,
 }
+use sundae/multisig.{MultisigScript, satisfied}
 
 pub type AllowlistConfig {
   registry_token: PolicyId,
   addresses: List<Address>,
+  deregistration: MultisigScript,
 }
 
 /// A vendor script, for an ongoing project with an owner
@@ -28,6 +31,19 @@ validator allowlist_vendor(config: AllowlistConfig) {
       is_modify_transaction(registry, self)?,
       is_valid_withdraw_transaction(config.addresses, registry, self)?,
     }?
+  }
+
+  publish(_redeemer: Data, certificate: Certificate, self: Transaction) {
+    when certificate is {
+      RegisterCredential { .. } -> True
+      UnregisterCredential { .. } -> satisfied(
+        config.deregistration,
+        self.extra_signatories,
+        self.validity_range,
+        self.withdrawals,
+      )
+      _ -> False
+    }
   }
 
   // No other actions (withdrawing, minting, voting, etc.) are valid
