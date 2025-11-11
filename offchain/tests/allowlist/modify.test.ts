@@ -25,6 +25,7 @@ import {
 } from "../../src/shared";
 import { modify } from "../../src/vendor";
 import {
+  disburse_key,
   Modifier,
   modify_key,
   sampleTreasuryConfig,
@@ -88,10 +89,19 @@ describe("With a vendor with the allowlist script", () => {
       emulator.register("Allowed 3"),
     ]);
 
-    allowlist = loadAllowlistScript(Core.NetworkId.Testnet, {
-      registry_token: vendorConfig.registry_token,
-      addresses: allowedAddresses.map(coreAddressToContractsAddress),
-    });
+    allowlist = loadAllowlistScript(
+      Core.NetworkId.Testnet,
+      {
+        registry_token: vendorConfig.registry_token,
+        addresses: allowedAddresses.map(coreAddressToContractsAddress),
+        deregistration: {
+          Signature: {
+            key_hash: await disburse_key(emulator),
+          },
+        },
+      },
+      true,
+    );
     emulator.accounts.set(allowlist.rewardAccount!, 0n);
     await emulator.publishScript(allowlist.script.Script);
 
