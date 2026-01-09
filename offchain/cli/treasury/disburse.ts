@@ -112,10 +112,10 @@ export async function getReference(): Promise<IReference> {
 }
 
 export async function disburse(
-  blaze: Blaze<Provider, Wallet> | undefined = undefined,
+  blazeInstance: Blaze<Provider, Wallet> | undefined = undefined,
 ): Promise<void> {
-  if (!blaze) {
-    blaze = await getBlazeInstance();
+  if (!blazeInstance) {
+    blazeInstance = await getBlazeInstance();
   }
   const { configs, scripts } = await getConfigs(blazeInstance);
 
@@ -124,9 +124,11 @@ export async function disburse(
     configs.treasury,
   );
 
+  console.log(treasuryScriptAddress.toBech32());
   const utxos = await blazeInstance.provider.getUnspentOutputs(
     treasuryScriptAddress,
   );
+  console.log("done");
   const inputUtxos = await selectUtxos(utxos);
   const inputAmount = inputUtxos.reduce(
     (acc, r) => Tx.Value.merge(acc, r.output().amount()),
@@ -208,5 +210,5 @@ export async function disburse(
     })
   ).complete();
 
-  await transactionDialog(blaze.provider.network, tx.toCbor(), false);
+  await transactionDialog(blazeInstance.provider.network, tx.toCbor(), false);
 }
