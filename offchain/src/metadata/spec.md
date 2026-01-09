@@ -174,7 +174,7 @@ Finally, each milestone itself **may** have a human readable label, description,
 
 # Disburse
 
-A disburse transaction with will have the following metadata attached to it:
+A disburse transaction will have the following metadata attached to it:
 
 ```json
 {

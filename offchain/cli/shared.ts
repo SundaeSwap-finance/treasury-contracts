@@ -1,10 +1,13 @@
 import {
   Address,
+  AssetId,
   CredentialType,
   Ed25519KeyHashHex,
   Script,
+  TokenMap,
   Transaction,
   TransactionUnspentOutput,
+  Value,
 } from "@blaze-cardano/core";
 import {
   Blaze,
@@ -12,10 +15,12 @@ import {
   ColdWallet,
   Core,
   Maestro,
+  makeValue,
   NetworkName,
   Wallet,
   type Provider,
 } from "@blaze-cardano/sdk";
+import * as Tx from "@blaze-cardano/tx";
 import { checkbox, input, select } from "@inquirer/prompts";
 import clipboard from "clipboardy";
 import fetch from "node-fetch";
@@ -566,14 +571,14 @@ export async function transactionDialog(
     choices.push({ name: "Submit to API", value: "submit" });
   }
 
-  if (expanded) {
-    console.log("Transaction cbor: ", txCbor);
-  } else {
-    console.log("Transaction cbor: ", `${txCbor.slice(0, 50)}...`);
-    choices.push({ name: "Expand", value: "expand" });
-  }
+  choices.push({ name: "Expand", value: "expand" });
   choices.push({ name: "Back", value: "back" });
   while (true) {
+    if (expanded) {
+      console.log("Transaction cbor: ", txCbor);
+    } else {
+      console.log("Transaction cbor: ", `${txCbor.slice(0, 50)}...`);
+    }
     try {
       const choice = await select({
         message: "Select an option",
@@ -1304,10 +1309,18 @@ export async function selectUtxo(
   if (utxos.length === 0) {
     throw new Error("No UTxOs available to select from");
   }
-  const choices = utxos.map((utxo, index) => ({
-    name: `${utxo.input().transactionId().toString()}#${utxo.input().index().toString()}: ${utxo.output().amount().coin().toString()}`,
-    value: index,
-  }));
+  const choices = utxos.map((utxo, index) => {
+    const multiasset: TokenMap =
+      utxo.output().amount().multiasset() ?? new Map();
+    let assets = "";
+    for (const [assetId, amount] of multiasset.entries()) {
+      assets += `+ ${amount} ${assetId}`;
+    }
+    return {
+      name: `${utxo.input().transactionId().toString()}#${utxo.input().index().toString()}: ${utxo.output().amount().coin().toString()} ${assets}`,
+      value: index,
+    };
+  });
   const selectedIndex = await select({
     message: "Select a UTxO to use",
     choices,
@@ -1321,15 +1334,55 @@ export async function selectUtxos(
   if (utxos.length === 0) {
     throw new Error("No UTxOs available to select from");
   }
-  const choices = utxos.map((utxo, index) => ({
-    name: `${utxo.input().transactionId().toString()}#${utxo.input().index().toString()}: ${utxo.output().amount().coin().toString()}`,
-    value: index,
-  }));
+  const choices = utxos.map((utxo, index) => {
+    const multiasset: TokenMap =
+      utxo.output().amount().multiasset() ?? new Map();
+    let assets = "";
+    for (const [assetId, amount] of multiasset.entries()) {
+      assets += `+ ${amount} ${assetId}`;
+    }
+    return {
+      name: `${utxo.input().transactionId().toString()}#${utxo.input().index().toString()}: ${utxo.output().amount().coin().toString()} ${assets}`,
+      value: index,
+    };
+  });
   const selectedIndices = await checkbox({
     message: "Select UTxO(s) to use",
     choices,
   });
   return selectedIndices.map((index) => utxos[index]);
+}
+
+export async function chooseAmount(
+  label: string,
+  value: Value,
+): Promise<Value> {
+  const tokenChoices = [{ name: "ADA", value: "ada.lovelace" }];
+  for (const [assetId] of value.multiasset() ?? new Map<AssetId, bigint>()) {
+    tokenChoices.push({ name: assetId, value: assetId });
+  }
+  const tokens = await checkbox({
+    message: `Select tokens to include for ${label}`,
+    choices: tokenChoices,
+  });
+
+  let retValue = makeValue(0n);
+  for (const token of tokens) {
+    const amount =
+      token === "ada.lovelace" ? value.coin() : value.multiasset()!.get(token)!;
+    const subAmount = await input({
+      message: `How much of ${token}? (max/default: ${amount})`,
+      validate: (s) => /^\+?(0|[1-9]\d*)$/.test(s) || "Must be an integer",
+      default: amount.toString(),
+    });
+    retValue = Tx.Value.merge(
+      retValue,
+      token === "ada.lovelace"
+        ? makeValue(BigInt(subAmount))
+        : makeValue(0n, [token, BigInt(subAmount)]),
+    );
+  }
+  return retValue;
 }
 
 export function getActualPermission(
