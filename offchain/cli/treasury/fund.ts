@@ -193,6 +193,9 @@ export async function fund(
     identifier: await input({
       message: "What is the main identifier for this project?",
     }),
+    proposalGroupKey: await maybeInput({
+      message: "What is the proposal group key for this fund? (optional)",
+    }),
     otherIdentifiers: await getIdentifiers(),
     label: await input({
       message: "What is the name of this project?",

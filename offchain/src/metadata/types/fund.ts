@@ -17,6 +17,7 @@ export interface IFundMilestone {
 export interface IFund extends IMetadataBodyBase {
   event: ETransactionEvent.FUND;
   identifier: string;
+  proposalGroupKey?: string;
   otherIdentifiers: string[];
   label: string;
   description: string;
