@@ -1,5 +1,6 @@
 import {
   AssetId,
+  AuxiliaryData,
   Ed25519KeyHashHex,
   PlutusData,
   Script,
@@ -20,6 +21,11 @@ import {
   VendorSpendRedeemer,
 } from "../../generated-types/contracts.js";
 import {
+  type ITransactionMetadata,
+  toTxMetadata,
+} from "../../metadata/shared.js";
+import type { IModify } from "../../metadata/types/modify.js";
+import {
   contractsValueToCoreValue,
   loadConfigsAndScripts,
   rewardAccountFromScript,
@@ -34,6 +40,7 @@ export interface IModifyArgs<P extends Provider, W extends Wallet> {
   new_vendor: VendorDatum;
   signers: Ed25519KeyHashHex[];
   additionalScripts?: { script: Script; redeemer: PlutusData }[];
+  metadata?: ITransactionMetadata<IModify>;
 }
 
 export async function modify<P extends Provider, W extends Wallet>({
@@ -44,6 +51,7 @@ export async function modify<P extends Provider, W extends Wallet>({
   new_vendor,
   signers,
   additionalScripts,
+  metadata,
 }: IModifyArgs<P, W>): Promise<TxBuilder> {
   const { configs, scripts } = loadConfigsAndScripts(blaze, configsOrScripts);
   const { scriptAddress: treasuryScriptAddress } = scripts.treasuryScript;
@@ -101,6 +109,13 @@ export async function modify<P extends Provider, W extends Wallet>({
   if (!Value.empty(remainder)) {
     tx = tx.lockAssets(treasuryScriptAddress, remainder, Data.Void());
   }
+
+  if (metadata) {
+    const auxData = new AuxiliaryData();
+    auxData.setMetadata(toTxMetadata(metadata));
+    tx.setAuxiliaryData(auxData);
+  }
+
   return tx;
 }
 

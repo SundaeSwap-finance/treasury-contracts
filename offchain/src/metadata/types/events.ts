@@ -1,4 +1,5 @@
 export enum ETransactionEvent {
+  MODIFY = "modify",
   FUND = "fund",
   PAUSE = "pause",
   RESUME = "resume",

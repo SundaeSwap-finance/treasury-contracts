@@ -12,6 +12,7 @@ import { IDisburse } from "./types/disburse.js";
 import { ETransactionEvent } from "./types/events.js";
 import { IFund } from "./types/fund.js";
 import { IInitialize } from "./types/initialize-reorganize.js";
+import { IModify } from "./types/modify.js";
 import { INewInstance } from "./types/new-instance.js";
 import { IWithdraw } from "./types/withdraw.js";
 
@@ -32,7 +33,8 @@ export type TMetadataBody =
   | IWithdraw
   | IComplete
   | INewInstance
-  | IDisburse;
+  | IDisburse
+  | IModify;
 
 export interface ITransactionMetadata<B = TMetadataBody> {
   "@context": string;
