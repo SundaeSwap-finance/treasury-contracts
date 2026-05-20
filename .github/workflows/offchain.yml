@@ -16,9 +16,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v1
-      - uses: actions/setup-node@v3
+      - uses: actions/setup-node@v4
         with:
           node-version: 20
+          registry-url: https://registry.npmjs.org
+          scope: "@sundaeswap"
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.PUBLISH_NPM_TOKEN }}
 
       - name: Install dependencies
         run: |
@@ -40,6 +44,16 @@ jobs:
           cd offchain
           bun run build
 
+      - name: Configure npm authentication
+        env:
+          PUBLISH_NPM_TOKEN: ${{ secrets.PUBLISH_NPM_TOKEN }}
+        run: |
+          if [ -z "$PUBLISH_NPM_TOKEN" ]; then
+            echo "::error::PUBLISH_NPM_TOKEN is not set in repository secrets."
+            exit 1
+          fi
+          npm config set //registry.npmjs.org/:_authToken "$PUBLISH_NPM_TOKEN"
+
       - id: check
         name: Check published version
         run: |
@@ -53,16 +67,12 @@ jobs:
           else
             echo "changed=false" >> $GITHUB_OUTPUT
           fi
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.PUBLISH_NPM_TOKEN }}
 
       - name: Publish
         if: steps.check.outputs.changed == 'true'
         run: |
           cd offchain
           npm publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.PUBLISH_NPM_TOKEN }}
 
       - name: Log Unchanged
         if: steps.check.outputs.changed == 'false'
