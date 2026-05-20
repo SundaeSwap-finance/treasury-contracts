@@ -61,9 +61,6 @@ jobs:
       #     git pull --rebase --no-verify origin main
       #     git push --follow-tags --no-verify origin main
 
-      - name: Configure npm authentication
-        run: npm config set //registry.npmjs.org/:_authToken ${{ secrets.NPM_TOKEN }}
-
       - id: check
         name: Check published version
         uses: EndBug/version-check@v2
@@ -75,6 +72,8 @@ jobs:
       # Create Release, if the version has changed
       - name: Publish
         if: steps.check.outputs.changed == 'true'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.PUBLISH_NPM_TOKEN }}
         run: |
           cd offchain
           npm publish
