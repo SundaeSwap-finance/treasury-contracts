@@ -6,8 +6,8 @@ on:
       - main
 
 permissions:
-  id-token: write # required to use OIDC authentication
-  contents: write # required to checkout and push to the repo
+  id-token: write
+  contents: write
 
 jobs:
   Publish:
@@ -18,16 +18,7 @@ jobs:
       - uses: oven-sh/setup-bun@v1
       - uses: actions/setup-node@v3
         with:
-          node-version: 18
-
-      # Git Identity
-      - name: Git Identity
-        run: |
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git config --global user.name "github-actions[bot]"
-          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          node-version: 20
 
       - name: Install dependencies
         run: |
@@ -49,37 +40,30 @@ jobs:
           cd offchain
           bun run build
 
-      # Bump Versions (reinstate after release)
-      # - name: Bump versions
-      #   run: |
-      #     cd offchain
-      #     bun version
-
-      # Pull latest changes and rebase before pushing
-      # - name: Pull and Push changes
-      #   run: |
-      #     git pull --rebase --no-verify origin main
-      #     git push --follow-tags --no-verify origin main
-
       - id: check
         name: Check published version
-        uses: EndBug/version-check@v2
-        with:
-          file-name: ./offchain/package.json
-          file-url: https://unpkg.com/@sundaeswap/treasury-funds@latest/package.json
-          static-checking: localIsNew
-
-      # Create Release, if the version has changed
-      - name: Publish
-        if: steps.check.outputs.changed == 'true'
+        run: |
+          cd offchain
+          LOCAL=$(jq -r .version package.json)
+          REMOTE=$(npm view @sundaeswap/treasury-funds version 2>/dev/null || true)
+          echo "Local: $LOCAL"
+          echo "Remote: ${REMOTE:-<unpublished>}"
+          if [ "$LOCAL" != "$REMOTE" ]; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "changed=false" >> $GITHUB_OUTPUT
+          fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PUBLISH_NPM_TOKEN }}
+
+      - name: Publish
+        if: steps.check.outputs.changed == 'true'
         run: |
           cd offchain
           npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.PUBLISH_NPM_TOKEN }}
 
-      # Or log, if we don't
       - name: Log Unchanged
         if: steps.check.outputs.changed == 'false'
-        run: |
-          echo "Skipping publish because version is unchanged"
+        run: echo "Skipping publish because version is unchanged"
