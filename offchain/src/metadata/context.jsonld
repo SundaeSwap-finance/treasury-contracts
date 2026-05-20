@@ -65,8 +65,23 @@
           "@id": "tom:outputs",
           "@container": "@index"
         },
+        "proposalGroupKey": "tom:proposalGroupKey",
         "vendor": "tom:vendor",
         "contract": "tom:contract",
+        "allowlist": {
+          "@id": "tom:allowlist",
+          "@context": {
+            "scriptHash": "tom:allowlistScriptHash",
+            "addresses": {
+              "@id": "tom:allowlistAddresses",
+              "@container": "@list",
+              "@context": {
+                "address": "tom:allowlistAddress",
+                "label": "tom:allowlistLabel"
+              }
+            }
+          }
+        },
         "milestones": {
           "@id": "tom:milestones",
           "@container": "@index",
