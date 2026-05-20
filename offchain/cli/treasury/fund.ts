@@ -4,7 +4,11 @@ import { confirm, input, select } from "@inquirer/prompts";
 
 import { Void } from "@blaze-cardano/data";
 import { Treasury } from "../../src";
-import { IFund, IFundMilestone } from "../../src/metadata/types/fund";
+import {
+  IFund,
+  IFundAllowlist,
+  IFundMilestone,
+} from "../../src/metadata/types/fund";
 import {
   toMultisig,
   toPermission,
@@ -117,6 +121,7 @@ export async function fund(
   )) as TPermissionMetadata;
 
   let allowListScript: Script | undefined;
+  let fundAllowlistMetadata: IFundAllowlist | undefined;
 
   if (
     await confirm({
@@ -124,6 +129,7 @@ export async function fund(
     })
   ) {
     const addresses = [];
+    const allowlistDestinations: IFundAllowlist["addresses"] = [];
     while (true) {
       const nextAddress = await input({
         message: "Enter an address, empty to finish",
@@ -136,6 +142,12 @@ export async function fund(
           console.log("No addresses provided");
         }
       }
+      const label = await maybeInput({
+        message: "Human-readable label for this address? (optional)",
+      });
+      allowlistDestinations.push(
+        label ? { address: nextAddress, label } : { address: nextAddress },
+      );
       addresses.push(
         coreAddressToContractsAddress(Address.fromBech32(nextAddress)),
       );
@@ -145,6 +157,10 @@ export async function fund(
       addresses,
     });
     allowListScript = allowlist.script.Script;
+    fundAllowlistMetadata = {
+      scriptHash: allowlist.script.Script.hash(),
+      addresses: allowlistDestinations,
+    };
 
     vendorPermissions = {
       allOf: {
@@ -193,6 +209,9 @@ export async function fund(
     identifier: await input({
       message: "What is the main identifier for this project?",
     }),
+    proposalGroupKey: await maybeInput({
+      message: "What is the proposal group key for this fund? (optional)",
+    }),
     otherIdentifiers: await getIdentifiers(),
     label: await input({
       message: "What is the name of this project?",
@@ -223,6 +242,9 @@ export async function fund(
   const { schedule, milestones } = await getMilestones();
 
   metadataBody.milestones = milestones;
+  if (fundAllowlistMetadata) {
+    metadataBody.allowlist = fundAllowlistMetadata;
+  }
 
   const txMetadata = await getTransactionMetadata(
     configs.treasury.registry_token,

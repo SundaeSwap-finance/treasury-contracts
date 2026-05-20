@@ -133,8 +133,9 @@ When we pay funds out of the treasury smart contract, into the vendor contract, 
   "txAuthor": "c27...",
   "instance": "1ef...",
   "body": {
-    "event": "fund"
+    "event": "fund",
     "identifier": "PO123",
+    "proposalGroupKey": "ekklesia-proposal-42",
     "otherIdentifiers": [...],
     "label": "Human Readable Title",
     "description": "long-form markdown annotated description",
@@ -149,20 +150,29 @@ When we pay funds out of the treasury smart contract, into the vendor contract, 
       "anchorUrl": "ipfs://...",
       "anchorDataHash": "...",
     },
-    "milestones": {
-      "001": {
+    "milestones": [
+      {
         "identifier": "001",
         "label": "...",
         "description": "A human readable description",
         "acceptanceCriteria": "...",
         "details": { ... }
       }
+    ],
+    "allowlist": {
+      "scriptHash": "ab12cd34...",
+      "addresses": [
+        { "address": "addr_test1...", "label": "Wallet A" },
+        { "address": "addr_test1..." }
+      ]
     }
   }
 }
 ```
 
 The project is assigned a unique identifier, which will be inherited by all descendants of the relevant UTxO. This can be, for example, an internal project number. In some cases, there **may** be other related project numbers (for example: the vendors internal project number, or the Ekklesia identifier for the project), which can be provided in otherIdentifiers.
+
+**proposalGroupKey** optionally links multiple funded projects that belong to the same governance proposal. When unused, producers should omit the field or set it to an empty string.
 
 The project itself is given a human readable label that serves as a title, as well as a long-form, markdown formatted description.
 
@@ -171,6 +181,8 @@ The vendor is assigned a label, and **may** link to additional details about the
 If available, a link to the contract can be provided. This could be hosted on a durable storage solution like IPFS or Iagon storage, or on more conventional hosting platforms. It also **may** be publicly visible, or encrypted for certain parties if necessary. These are considered concerns outside the scope of the TOM portal.
 
 Finally, each milestone itself **may** have a human readable label, description, acceptance criteria, and reference to further details via an anchor URL. The milestones are indexed by their identifier, to match other metadata messages, and must match 1:1 with the milestones in the transaction datum.
+
+When the vendor is gated by a parameterised allowlist script, **allowlist** records the script hash and the ordered payout destinations (bech32 addresses, with optional human-readable labels). This block is attached at funding time so transaction review and indexers can display destinations without re-deriving them from script bytes.
 
 # Disburse
 

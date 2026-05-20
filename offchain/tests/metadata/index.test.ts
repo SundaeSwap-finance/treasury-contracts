@@ -7,6 +7,8 @@ import {
   toTxMetadata,
 } from "../../src/metadata/shared.js";
 import { ETransactionEvent } from "../../src/metadata/types/events.js";
+import { IFund } from "../../src/metadata/types/fund.js";
+import { INewInstance } from "../../src/metadata/types/new-instance.js";
 
 const publishMetadata: ITransactionMetadata = {
   body: {
@@ -16,7 +18,7 @@ const publishMetadata: ITransactionMetadata = {
       outputIndex: 1n,
       transactionId:
         "bee1ae94e4ab00990cb15ea38b141a3335f36dacc0d5642224be5dfa40a1b4dd",
-    },
+    } as unknown as INewInstance["seedUtxo"],
     expiration: 1767243600000n,
     description: "Testing new indexing code!",
     permissions: {
@@ -42,7 +44,7 @@ const publishMetadata: ITransactionMetadata = {
   hashAlgorithm: "blake2b-256",
 };
 
-const fundMetadata: ITransactionMetadata = {
+const fundMetadata: ITransactionMetadata<IFund> = {
   body: {
     event: ETransactionEvent.FUND,
     label: "Sample Instance 12",
@@ -105,5 +107,46 @@ describe("fromMetadata", () => {
     );
     const result2 = await fromTxMetadata(metadata2);
     expect(result2).toMatchObject(fundMetadata);
+  });
+
+  it("should round-trip fund metadata with proposalGroupKey and allowlist", async () => {
+    const metadata: ITransactionMetadata<IFund> = {
+      ...fundMetadata,
+      body: {
+        ...fundMetadata.body,
+        proposalGroupKey: "proposal-alpha",
+        allowlist: {
+          scriptHash: "ab12cd34".repeat(7),
+          addresses: [
+            {
+              address: "addr_test1qqqqexample1qqqqexample1qqqqexample1qqqqex",
+              label: "Wallet A",
+            },
+            {
+              address: "addr_test1qqqqexample2qqqqexample2qqqqexample2qqqqex",
+            },
+          ],
+        },
+      },
+    };
+
+    const encoded = toTxMetadata(metadata);
+    const decoded = await fromTxMetadata(encoded);
+    expect(decoded.body).toMatchObject({
+      event: ETransactionEvent.FUND,
+      proposalGroupKey: "proposal-alpha",
+      allowlist: {
+        scriptHash: "ab12cd34".repeat(7),
+        addresses: [
+          {
+            address: "addr_test1qqqqexample1qqqqexample1qqqqexample1qqqqex",
+            label: "Wallet A",
+          },
+          {
+            address: "addr_test1qqqqexample2qqqqexample2qqqqexample2qqqqex",
+          },
+        ],
+      },
+    });
   });
 });
