@@ -186,7 +186,7 @@ When the vendor is gated by a parameterised allowlist script, **allowlist** reco
 
 # Disburse
 
-A disburse transaction with will have the following metadata attached to it:
+A disburse transaction will have the following metadata attached to it:
 
 ```json
 {
