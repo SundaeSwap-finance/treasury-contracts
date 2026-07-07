@@ -15,7 +15,6 @@ fn seed_utxo() -> OutputReference {
   }
 }
 
-
 // New Intersect leadership keys for 2026
 
 fn intersect_leadership_3() -> MultisigScript {
@@ -211,11 +210,24 @@ fn intersect_leadership() -> List<MultisigScript> {
 }
 
 fn intersect_admin() -> List<MultisigScript> {
-  [intersect_admin_1(), intersect_admin_2(), intersect_admin_3(), intersect_admin_4(), intersect_admin_5()]
+  [
+    intersect_admin_1(),
+    intersect_admin_2(),
+    intersect_admin_3(),
+    intersect_admin_4(),
+    intersect_admin_5(),
+  ]
 }
 
 fn trusted_entities() -> List<MultisigScript> {
-  [cardano_foundation(), sundae_labs(), nmkr(), dquadrant(), sundial(), eternl()]
+  [
+    cardano_foundation(),
+    sundae_labs(),
+    nmkr(),
+    dquadrant(),
+    sundial(),
+    eternl(),
+  ]
 }
 
 // Permissions
