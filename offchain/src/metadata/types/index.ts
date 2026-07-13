@@ -6,4 +6,5 @@ export * from "./fund.js";
 export * from "./initialize-reorganize.js";
 export * from "./new-instance.js";
 export * from "./permission.js";
+export * from "./sweep.js";
 export * from "./withdraw.js";
