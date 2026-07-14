@@ -8,4 +8,5 @@ export enum ETransactionEvent {
   PUBLISH = "publish",
   WITHDRAW = "withdraw",
   DISBURSE = "disburse",
+  SWEEP = "sweep",
 }
