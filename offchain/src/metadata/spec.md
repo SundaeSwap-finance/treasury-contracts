@@ -384,8 +384,14 @@ Finally, at the end of the lifecycle of funds, any surplus may be swept back to 
   "txAuthor": "c27...",
   "instance": "1ef...",
   "body": {
-    "event": "sweep"
-    "comment": "a long form comment on why funds are being swept now",
+    "event": "sweep",
+    "projectIdentifier": "PO123",
+    "milestones": ["001", "002"],
+    "comment": "a long form comment on why funds are being swept now"
   }
 }
 ```
+
+When the swept surplus relates to a funded project (for example, a sweep from the vendor contract, or of treasury funds that were earmarked for a project), projectIdentifier references the identifier assigned to the project in the fund event, and milestones lists the identifiers of the milestones from that fund event that the surplus originated from. Both are omitted when there is no associated project.
+
+The comment provides a long-form markdown justification for why the funds are being swept now. All fields besides event are optional.
