@@ -6,7 +6,7 @@
     "plutusVersion": "v3",
     "compiler": {
       "name": "Aiken",
-      "version": "v1.1.19+unknown"
+      "version": "v1.1.21+unknown"
     },
     "license": "Apache-2.0"
   },
@@ -320,31 +320,31 @@
     "Int": {
       "dataType": "integer"
     },
-    "List$cardano/address/Address": {
+    "List<cardano/address/Address>": {
       "dataType": "list",
       "items": {
         "$ref": "#/definitions/cardano~1address~1Address"
       }
     },
-    "List$sundae/multisig/MultisigScript": {
+    "List<sundae/multisig/MultisigScript>": {
       "dataType": "list",
       "items": {
         "$ref": "#/definitions/sundae~1multisig~1MultisigScript"
       }
     },
-    "List$types/Payout": {
+    "List<types/Payout>": {
       "dataType": "list",
       "items": {
         "$ref": "#/definitions/types~1Payout"
       }
     },
-    "List$types/PayoutStatus": {
+    "List<types/PayoutStatus>": {
       "dataType": "list",
       "items": {
         "$ref": "#/definitions/types~1PayoutStatus"
       }
     },
-    "Option$cardano/address/StakeCredential": {
+    "Option<cardano/address/StakeCredential>": {
       "title": "Option",
       "anyOf": [
         {
@@ -367,7 +367,7 @@
         }
       ]
     },
-    "Pairs$cardano/assets/AssetName_Int": {
+    "Pairs<cardano/assets/AssetName,Int>": {
       "title": "Pairs<AssetName, Int>",
       "dataType": "map",
       "keys": {
@@ -377,14 +377,14 @@
         "$ref": "#/definitions/Int"
       }
     },
-    "Pairs$cardano/assets/PolicyId_Pairs$cardano/assets/AssetName_Int": {
+    "Pairs<cardano/assets/PolicyId,Pairs<cardano/assets/AssetName,Int>>": {
       "title": "Pairs<PolicyId, Pairs<AssetName, Int>>",
       "dataType": "map",
       "keys": {
         "$ref": "#/definitions/cardano~1assets~1PolicyId"
       },
       "values": {
-        "$ref": "#/definitions/Pairs$cardano~1assets~1AssetName_Int"
+        "$ref": "#/definitions/Pairs<cardano~1assets~1AssetName,Int>"
       }
     },
     "Void": {
@@ -419,7 +419,7 @@
             },
             {
               "title": "addresses",
-              "$ref": "#/definitions/List$cardano~1address~1Address"
+              "$ref": "#/definitions/List<cardano~1address~1Address>"
             },
             {
               "title": "deregistration",
@@ -444,7 +444,7 @@
             },
             {
               "title": "stake_credential",
-              "$ref": "#/definitions/Option$cardano~1address~1StakeCredential"
+              "$ref": "#/definitions/Option<cardano~1address~1StakeCredential>"
             }
           ]
         }
@@ -587,7 +587,7 @@
           "fields": [
             {
               "title": "scripts",
-              "$ref": "#/definitions/List$sundae~1multisig~1MultisigScript"
+              "$ref": "#/definitions/List<sundae~1multisig~1MultisigScript>"
             }
           ]
         },
@@ -598,7 +598,7 @@
           "fields": [
             {
               "title": "scripts",
-              "$ref": "#/definitions/List$sundae~1multisig~1MultisigScript"
+              "$ref": "#/definitions/List<sundae~1multisig~1MultisigScript>"
             }
           ]
         },
@@ -613,7 +613,7 @@
             },
             {
               "title": "scripts",
-              "$ref": "#/definitions/List$sundae~1multisig~1MultisigScript"
+              "$ref": "#/definitions/List<sundae~1multisig~1MultisigScript>"
             }
           ]
         },
@@ -666,7 +666,7 @@
             },
             {
               "title": "value",
-              "$ref": "#/definitions/Pairs$cardano~1assets~1PolicyId_Pairs$cardano~1assets~1AssetName_Int"
+              "$ref": "#/definitions/Pairs<cardano~1assets~1PolicyId,Pairs<cardano~1assets~1AssetName,Int>>"
             },
             {
               "title": "status",
@@ -794,7 +794,7 @@
           "fields": [
             {
               "title": "amount",
-              "$ref": "#/definitions/Pairs$cardano~1assets~1PolicyId_Pairs$cardano~1assets~1AssetName_Int"
+              "$ref": "#/definitions/Pairs<cardano~1assets~1PolicyId,Pairs<cardano~1assets~1AssetName,Int>>"
             }
           ]
         },
@@ -805,7 +805,7 @@
           "fields": [
             {
               "title": "amount",
-              "$ref": "#/definitions/Pairs$cardano~1assets~1PolicyId_Pairs$cardano~1assets~1AssetName_Int"
+              "$ref": "#/definitions/Pairs<cardano~1assets~1PolicyId,Pairs<cardano~1assets~1AssetName,Int>>"
             }
           ]
         }
@@ -849,7 +849,7 @@
             },
             {
               "title": "payouts",
-              "$ref": "#/definitions/List$types~1Payout"
+              "$ref": "#/definitions/List<types~1Payout>"
             }
           ]
         }
@@ -895,7 +895,7 @@
           "fields": [
             {
               "title": "statuses",
-              "$ref": "#/definitions/List$types~1PayoutStatus"
+              "$ref": "#/definitions/List<types~1PayoutStatus>"
             }
           ]
         },
