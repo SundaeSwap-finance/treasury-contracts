@@ -7,6 +7,7 @@ import {
   PlutusData,
   Script,
   toHex,
+  TransactionOutput,
   TransactionUnspentOutput,
   Value,
 } from "@blaze-cardano/core";
@@ -144,11 +145,12 @@ export async function withdraw<P extends Provider, W extends Wallet>({
     }
   }
 
+  // Allowlist destinations may be script addresses, which payAssets rejects.
   if (destination) {
-    tx.payAssets(destination, totalValue);
+    tx.addOutput(new TransactionOutput(destination, totalValue));
   } else if (destinations) {
     for (const { address, amount } of destinations) {
-      tx.payAssets(address, amount);
+      tx.addOutput(new TransactionOutput(address, amount));
     }
   } else if (!tx.outputsCount) {
     for (const input of inputs) {

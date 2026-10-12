@@ -90,6 +90,20 @@ describe("With a vendor with the allowlist script", () => {
       emulator.register("Allowed 2"),
       emulator.register("Allowed 3"),
     ]);
+    allowedAddresses.push(
+      new Core.Address({
+        type: Core.AddressType.BasePaymentScriptStakeKey,
+        networkId: Core.NetworkId.Testnet,
+        paymentPart: {
+          type: Core.CredentialType.ScriptHash,
+          hash: Core.Hash28ByteBase16("d".repeat(56)),
+        },
+        delegationPart: {
+          type: Core.CredentialType.KeyHash,
+          hash: Core.Hash28ByteBase16("e".repeat(56)),
+        },
+      }),
+    );
 
     allowlist = loadAllowlistScript(
       Core.NetworkId.Testnet,
@@ -345,6 +359,31 @@ describe("With a vendor with the allowlist script", () => {
             now: new Date(Number(emulator.slotToUnix(Slot(2)))),
             inputs: [scriptInput],
             destination: allowedAddresses[0],
+            signers: [vendorSigner],
+            additionalScripts: [
+              { script: allowlist.script.Script, redeemer: Data.Void() },
+            ],
+          }),
+        );
+      });
+    });
+    test("can withdraw a matured payout to a script address", async () => {
+      emulator.stepForwardToSlot(2000n);
+      await emulator.as(Vendor, async (blaze, _) => {
+        await emulator.expectValidTransaction(
+          blaze,
+          await withdraw({
+            configsOrScripts,
+            blaze,
+            now: new Date(Number(emulator.slotToUnix(Slot(2)))),
+            inputs: [scriptInput],
+            destinations: [
+              { address: allowedAddresses[0], amount: makeValue(20_000_000n) },
+              {
+                address: allowedAddresses[3],
+                amount: makeValue(499_980_000_000n),
+              },
+            ],
             signers: [vendorSigner],
             additionalScripts: [
               { script: allowlist.script.Script, redeemer: Data.Void() },
