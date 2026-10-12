@@ -7,7 +7,7 @@ import {
 import * as Data from "@blaze-cardano/data";
 import { Emulator } from "@blaze-cardano/emulator";
 import { Core, makeValue } from "@blaze-cardano/sdk";
-import { beforeEach, describe, test } from "bun:test";
+import { beforeEach, describe, expect, test } from "bun:test";
 import { ETransactionEvent } from "src";
 import { modify } from "src/vendor";
 import {
@@ -370,9 +370,8 @@ describe("With a vendor with the allowlist script", () => {
     test("can withdraw a matured payout to a script address", async () => {
       emulator.stepForwardToSlot(2000n);
       await emulator.as(Vendor, async (blaze, _) => {
-        await emulator.expectValidTransaction(
-          blaze,
-          await withdraw({
+        const build = () =>
+          withdraw({
             configsOrScripts,
             blaze,
             now: new Date(Number(emulator.slotToUnix(Slot(2)))),
@@ -388,8 +387,17 @@ describe("With a vendor with the allowlist script", () => {
             additionalScripts: [
               { script: allowlist.script.Script, redeemer: Data.Void() },
             ],
-          }),
-        );
+          });
+
+        const outputs = (await (await build()).complete()).body().outputs();
+        const outputTo = (address: Core.Address) =>
+          outputs.find((o) => o.address().toBech32() === address.toBech32());
+        expect(
+          outputTo(allowedAddresses[3])?.datum()?.asInlineData()?.toCbor(),
+        ).toEqual(Data.Void().toCbor());
+        expect(outputTo(allowedAddresses[0])?.datum()).toBeUndefined();
+
+        await emulator.expectValidTransaction(blaze, await build());
       });
     });
     test("can withdraw a matured payout to multiple addresses", async () => {

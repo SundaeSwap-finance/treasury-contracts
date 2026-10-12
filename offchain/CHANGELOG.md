@@ -6,7 +6,7 @@ All notable changes to this project will be documented in this file. See [standa
 
 ### Bug Fixes
 
-- `Vendor.withdraw` can pay script-address destinations (e.g. a native multisig on the allowlist); it previously failed with `assertPaymentsAddress: address payment credential cannot be a script hash!`
+- `Vendor.withdraw` can pay script-address destinations (e.g. a native multisig on the allowlist), locking them with a `Void` inline datum; it previously failed with `assertPaymentsAddress: address payment credential cannot be a script hash!`
 
 ### [0.0.26](https://github.com/SundaeSwap-finance/treasury-contracts/compare/v0.0.25...v0.0.26) (2026-05-20)
 
