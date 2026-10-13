@@ -78,5 +78,10 @@
     "cbor": "^10.0.3",
     "clipboardy": "^4.0.0",
     "node-fetch": "^3.3.2"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SundaeSwap-finance/treasury-contracts.git",
+    "directory": "offchain"
   }
 }
