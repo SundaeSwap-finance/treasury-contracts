@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.0.28](https://github.com/SundaeSwap-finance/treasury-contracts/compare/v0.0.27...v0.0.28) (2026-10-12)
+
+### Bug Fixes
+
+- `Vendor.withdraw` can pay script-address destinations (e.g. a native multisig on the allowlist), locking them with a `Void` inline datum; it previously failed with `assertPaymentsAddress: address payment credential cannot be a script hash!`
+
 ### [0.0.26](https://github.com/SundaeSwap-finance/treasury-contracts/compare/v0.0.25...v0.0.26) (2026-05-20)
 
 ### Features

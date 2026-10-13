@@ -2,6 +2,7 @@ import {
   Address,
   AssetId,
   AuxiliaryData,
+  CredentialType,
   Ed25519KeyHashHex,
   Hash28ByteBase16,
   PlutusData,
@@ -144,11 +145,20 @@ export async function withdraw<P extends Provider, W extends Wallet>({
     }
   }
 
+  const pay = (address: Address, amount: Value) => {
+    if (address.getProps().paymentPart?.type === CredentialType.ScriptHash) {
+      // Native scripts ignore the datum; Plutus V1/V2 scripts cannot spend outputs without one.
+      tx.lockAssets(address, amount, Data.Void());
+    } else {
+      tx.payAssets(address, amount);
+    }
+  };
+
   if (destination) {
-    tx.payAssets(destination, totalValue);
+    pay(destination, totalValue);
   } else if (destinations) {
     for (const { address, amount } of destinations) {
-      tx.payAssets(address, amount);
+      pay(address, amount);
     }
   } else if (!tx.outputsCount) {
     for (const input of inputs) {
